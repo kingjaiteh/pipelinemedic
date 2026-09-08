@@ -1,0 +1,30 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets and local config
+.env
+
+# Working notes stay on disk. README.md is the only markdown file in the public repo.
+CLAUDE.md
+PLAN.md
+
+# Sandbox worktrees and DuckDB copies created by the validator
+sandbox/
+*.duckdb
+*.duckdb.wal
+
+# Langfuse / Postgres volumes
+docker/volumes/
+
+# Console build output
+web/node_modules/
+web/dist/
+
+.DS_Store
+Thumbs.db
+
+# Resume working file, never published
+RESUME_POINTS.md
