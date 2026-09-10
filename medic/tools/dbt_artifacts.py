@@ -83,7 +83,10 @@ def _clip(text: str | None, limit: int = MAX_MESSAGE_CHARS) -> str | None:
 
 
 def _name_and_type(unique_id: str) -> tuple[str, str]:
+    """`model.pkg.name` -> name; `test.pkg.name.hash` -> name, not the hash."""
     parts = unique_id.split(".")
+    if parts[0] == "test" and len(parts) >= 4:
+        return parts[2], parts[0]
     return parts[-1], parts[0]
 
 
@@ -130,6 +133,83 @@ def summarize_run_results(path: Path) -> RunSummary:
         failing=failing,
         skipped=skipped,
     )
+
+
+# --------------------------------------------------------------------------- #
+# sources.json (dbt source freshness)
+# --------------------------------------------------------------------------- #
+
+
+class SourceFreshness(BaseModel):
+    unique_id: str
+    name: str
+    status: str
+    max_loaded_at: str | None = None
+    age_s: float | None = None
+    warn_after: str | None = None
+    error_after: str | None = None
+    message: str | None = None
+
+    @property
+    def age_days(self) -> float | None:
+        return None if self.age_s is None else round(self.age_s / 86400, 1)
+
+
+class FreshnessSummary(BaseModel):
+    generated_at: str | None = None
+    total: int
+    status_counts: dict[str, int]
+    failing: list[SourceFreshness]
+    warning: list[SourceFreshness] = Field(default_factory=list)
+
+
+def _criteria(c: dict | None, key: str) -> str | None:
+    spec = (c or {}).get(key)
+    return f"{spec['count']} {spec['period']}" if spec else None
+
+
+def summarize_source_freshness(path: Path) -> FreshnessSummary:
+    """Sources past their error_after threshold, plus warnings and counts."""
+    data = _load(path)
+    results = data.get("results", [])
+    counts: dict[str, int] = {}
+    failing: list[SourceFreshness] = []
+    warning: list[SourceFreshness] = []
+    for r in results:
+        status = r.get("status", "unknown")
+        counts[status] = counts.get(status, 0) + 1
+        uid = r["unique_id"]
+        parts = uid.split(".")
+        age = r.get("max_loaded_at_time_ago_in_s")
+        entry = SourceFreshness(
+            unique_id=uid,
+            name=".".join(parts[2:]) if len(parts) >= 4 else parts[-1],
+            status=status,
+            max_loaded_at=r.get("max_loaded_at"),
+            age_s=float(age) if age is not None else None,
+            warn_after=_criteria(r.get("criteria"), "warn_after"),
+            error_after=_criteria(r.get("criteria"), "error_after"),
+            message=_clip(r.get("error") if status == "runtime error" else _freshness_message(r)),
+        )
+        if status in FAILING_STATUSES:
+            failing.append(entry)
+        elif status == "warn":
+            warning.append(entry)
+    return FreshnessSummary(
+        generated_at=data.get("metadata", {}).get("generated_at"),
+        total=len(results),
+        status_counts=counts,
+        failing=failing,
+        warning=warning,
+    )
+
+
+def _freshness_message(r: dict) -> str | None:
+    age = r.get("max_loaded_at_time_ago_in_s")
+    if age is None:
+        return None
+    limit = _criteria(r.get("criteria"), "error_after")
+    return f"{r.get('status')}: max_loaded_at is {age / 86400:.1f} days old (error after {limit})"
 
 
 # --------------------------------------------------------------------------- #

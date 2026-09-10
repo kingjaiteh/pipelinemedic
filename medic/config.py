@@ -73,5 +73,7 @@ class Budget:
 TARGET = PipelineTarget()
 LLM = LLMSettings()
 BUDGET = Budget()
-SANDBOX_ROOT = PROJECT_ROOT / "sandbox"
+# Sandboxes hold a full warehouse copy each (about 40 MB), so this can be moved
+# to a bigger drive with MEDIC_SANDBOX_ROOT.
+SANDBOX_ROOT = _env_path("MEDIC_SANDBOX_ROOT", PROJECT_ROOT / "sandbox")
 CHECKPOINT_DB = PROJECT_ROOT / "checkpoints.sqlite"

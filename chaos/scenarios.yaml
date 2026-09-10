@@ -1,0 +1,76 @@
+# Ground truth for the chaos suite. Each entry names a module in
+# chaos/scenarios/ whose apply() performs the mutation. expected_failing lists
+# node names or unique_ids; the run counts as reproduced when dbt exits non-zero,
+# at least one expected node is among the failures, and error_contains appears
+# in a failure message. Expectations were set from observed runs on 2026-09-10.
+
+scenarios:
+  - number: 1
+    key: renamed_column
+    title: Renamed source column
+    mutation: "ALTER TABLE raw.touchpoints RENAME COLUMN channel TO marketing_channel"
+    dbt_args: [build]
+    category: schema_drift
+    fix_kind: code_patch
+    expected_failing: [stg_touchpoints]
+    error_contains: "Binder Error"
+
+  - number: 2
+    key: null_flood
+    title: Null flood
+    mutation: "user_id set to NULL on 30% of raw.touchpoints (hash-selected, deterministic)"
+    dbt_args: [build]
+    category: data_quality
+    fix_kind: upstream_data_issue
+    expected_failing: [not_null_stg_touchpoints_user_id]
+    error_contains: "Got"
+
+  - number: 3
+    key: duplicate_keys
+    title: Duplicate keys
+    mutation: "one day (2026-02-10) of raw.touchpoints re-inserted"
+    dbt_args: [build]
+    category: data_quality
+    fix_kind: upstream_data_issue
+    expected_failing: [unique_stg_touchpoints_touchpoint_id]
+    error_contains: "Got"
+
+  - number: 4
+    key: type_change
+    title: Type change
+    mutation: "raw.touchpoints.cost recreated as VARCHAR with 'n/a' in about 1 row per 5000"
+    dbt_args: [build]
+    category: schema_drift
+    fix_kind: code_patch
+    expected_failing: [not_null_stg_touchpoints_touch_cost_usd]
+    error_contains: "Conversion Error"
+
+  - number: 5
+    key: bad_commit
+    title: Bad commit
+    mutation: "commit on the sandbox branch changes c.touch_count to c.touch_cnt in dim_channels.sql"
+    dbt_args: [build]
+    category: code_error
+    fix_kind: code_patch
+    expected_failing: [dim_channels]
+    error_contains: "Binder Error"
+
+  - number: 6
+    key: stale_source
+    title: Stale source
+    mutation: "raw.touchpoints.touched_at shifted back 30 days"
+    dbt_args: [source, freshness]
+    category: source_freshness
+    fix_kind: upstream_data_issue
+    expected_failing: [source.marketing_attribution.raw.touchpoints]
+    error_contains: "error"
+
+  - number: 7
+    key: volume_drop
+    title: Volume drop
+    mutation: "80% of raw.touchpoints rows on 2026-02-10 deleted (hash-selected, deterministic)"
+    dbt_args: [build]
+    category: volume_anomaly
+    fix_kind: upstream_data_issue
+    expected_failing: [assert_daily_touchpoint_volume]
+    error_contains: "Got"
