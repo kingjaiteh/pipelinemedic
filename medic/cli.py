@@ -82,6 +82,116 @@ def spike(
 
 
 # --------------------------------------------------------------------------- #
+# triage
+# --------------------------------------------------------------------------- #
+
+
+@app.command()
+def triage(
+    scenario: Annotated[
+        int | None,
+        typer.Option("--scenario", help="Chaos scenario number; needs `medic chaos run N` first"),
+    ] = None,
+    run_results: Annotated[
+        Path | None,
+        typer.Option(
+            "--run-results", exists=True, dir_okay=False, help="run_results.json or sources.json"
+        ),
+    ] = None,
+    sandbox: Annotated[
+        Path | None,
+        typer.Option(
+            "--sandbox",
+            exists=True,
+            file_okay=False,
+            help="Directory with marketing.duckdb and repo/",
+        ),
+    ] = None,
+    manifest: Annotated[
+        Path | None,
+        typer.Option(
+            "--manifest", exists=True, dir_okay=False, help="Defaults to next to the artifact"
+        ),
+    ] = None,
+    record: Annotated[
+        bool,
+        typer.Option(
+            "--record/--no-record", help="Save the transcript under tests/fixtures/<key>/"
+        ),
+    ] = True,
+    max_tool_calls: Annotated[
+        int | None, typer.Option(help="Override the tool-call budget")
+    ] = None,
+    model_name: Annotated[
+        str | None,
+        typer.Option(
+            "--model",
+            help="Model to use for this run (the free tier quota is per model per day)",
+        ),
+    ] = None,
+) -> None:
+    """Investigate one incident: triage, tool loop, ranked hypotheses, critic."""
+    from medic.config import LLMSettings
+    from medic.graph.build import build_graph, initial_state
+    from medic.graph.state import Budget
+    from medic.incident import incident_from_paths, incident_from_record
+    from medic.llm import make_chat_model
+    from medic.report import TriageReport, report_path
+    from medic.tools.registry import make_incident_tools
+    from medic.transcript import Transcript, fixture_path
+
+    settings = LLMSettings(model=model_name) if model_name else LLM
+
+    ground_truth = None
+    if scenario is not None:
+        from chaos.runner import incident_path
+        from chaos.scenarios import get_scenario
+
+        spec = get_scenario(scenario)
+        ground_truth = spec
+        try:
+            incident = incident_from_record(incident_path(spec.key))
+        except FileNotFoundError as exc:
+            typer.echo(str(exc))
+            raise typer.Exit(code=2) from exc
+    elif run_results is not None and sandbox is not None:
+        incident = incident_from_paths(run_results, sandbox, manifest)
+    else:
+        raise typer.BadParameter("give --scenario N, or --run-results <path> with --sandbox <dir>")
+
+    tools = make_incident_tools(incident)
+    model = make_chat_model(settings)
+    callbacks = tracing.make_callbacks()
+    budget = Budget(max_tool_calls=max_tool_calls) if max_tool_calls else Budget()
+    typer.echo(
+        f"incident {incident.run_id}: {len(incident.failing_nodes)} failing node(s); "
+        f"provider={settings.provider} model={settings.model} tracing={'on' if callbacks else 'off'}"
+    )
+    graph = build_graph(model, tools, budget=budget, callbacks=callbacks, log=typer.echo)
+    with tracing.trace("triage", run_id=incident.run_id, model=settings.model) as handle:
+        final = graph.invoke(initial_state(incident, budget), config={"recursion_limit": 120})
+
+    report = TriageReport.from_state(final, model=settings.model)
+    if ground_truth is not None:
+        report.with_ground_truth(
+            ground_truth.category, ground_truth.fix_kind, ground_truth.root_cause_terms
+        )
+    typer.echo("")
+    typer.echo(report.render())
+
+    key = incident.scenario_key or incident.run_id
+    saved = report.save(report_path(SANDBOX_ROOT, key))
+    typer.echo(f"\nreport {saved}")
+    if record:
+        path = Transcript.from_state(final, model=settings.model).save(fixture_path(key))
+        typer.echo(f"transcript {path}")
+    if handle.url:
+        typer.echo(f"trace: {handle.url}")
+    if report.status != "done" or not report.hypotheses:
+        raise typer.Exit(code=1)
+
+
+# --------------------------------------------------------------------------- #
 # chaos
 # --------------------------------------------------------------------------- #
 

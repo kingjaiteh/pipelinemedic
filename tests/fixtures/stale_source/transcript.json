@@ -1,0 +1,336 @@
+{
+ "scenario_key": "stale_source",
+ "model": "gemini-3.6-flash",
+ "incident": {
+  "source": "chaos",
+  "run_id": "chaos-stale_source",
+  "scenario": 6,
+  "scenario_key": "stale_source",
+  "dbt_args": [
+   "source",
+   "freshness"
+  ],
+  "artifact": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\stale_source\\repo\\dbt_marketing\\target\\sources.json",
+  "manifest": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\stale_source\\repo\\dbt_marketing\\target\\manifest.json",
+  "sandbox_dir": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\stale_source",
+  "duckdb": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\stale_source\\marketing.duckdb",
+  "repo": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\stale_source\\repo",
+  "failing_nodes": [
+   {
+    "unique_id": "source.marketing_attribution.raw.touchpoints",
+    "name": "raw.touchpoints",
+    "resource_type": "source",
+    "status": "error",
+    "message": "error: max_loaded_at is 31.0 days old (error after 7 day)"
+   }
+  ],
+  "status_counts": {
+   "error": 1
+  }
+ },
+ "llm_turns": [
+  {
+   "node": "triage_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "TriageVerdict",
+     "args": {
+      "confidence": 1,
+      "category": "source_freshness",
+      "rationale": "The source check failed because max_loaded_at is 31.0 days old (error after 7 day)."
+     },
+     "id": "call_2851413"
+    }
+   ],
+   "usage": {
+    "input_tokens": 524,
+    "output_tokens": 198,
+    "total_tokens": 722
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "get_run_results",
+     "args": {},
+     "id": "call_562011"
+    },
+    {
+     "name": "list_pipeline_files",
+     "args": {},
+     "id": "call_562012"
+    }
+   ],
+   "usage": {
+    "input_tokens": 1722,
+    "output_tokens": 246,
+    "total_tokens": 1968
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "get_lineage",
+     "args": {
+      "node": "raw.touchpoints",
+      "direction": "downstream"
+     },
+     "id": "call_1471248"
+    },
+    {
+     "name": "read_pipeline_file",
+     "args": {
+      "path": "dbt_marketing/models/staging/_sources.yml"
+     },
+     "id": "call_1471249"
+    },
+    {
+     "name": "get_recent_changes",
+     "args": {
+      "path": "dbt_marketing/models/staging/_sources.yml"
+     },
+     "id": "call_1471250"
+    }
+   ],
+   "usage": {
+    "input_tokens": 2754,
+    "output_tokens": 169,
+    "total_tokens": 2923
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "read_pipeline_file",
+     "args": {
+      "path": "dbt_marketing/dbt_project.yml"
+     },
+     "id": "call_502540"
+    },
+    {
+     "name": "query_duckdb",
+     "args": {
+      "sql": "select max(touched_at) as max_touched_at, min(touched_at) as min_touched_at, count(*) as cnt from raw.touchpoints"
+     },
+     "id": "call_502541"
+    }
+   ],
+   "usage": {
+    "input_tokens": 5412,
+    "output_tokens": 162,
+    "total_tokens": 5574
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "get_recent_changes",
+     "args": {
+      "n": 10
+     },
+     "id": "call_1901179"
+    }
+   ],
+   "usage": {
+    "input_tokens": 6519,
+    "output_tokens": 522,
+    "total_tokens": 7041
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "SubmitEvidence",
+     "args": {
+      "summary": "The dbt source freshness command failed for raw.touchpoints with an error stating max_loaded_at is 31.0 days old against a 7-day error threshold. The freshness query calculates age by comparing max(touched_at) (2026-03-14 03:36:01) to the project variable data_as_of (2026-04-14), resulting in a 31-day gap because raw.touchpoints only contains data up to March 14, 2026.",
+      "evidence": [
+       {
+        "tool_call_id": "T1",
+        "excerpt": "{\"unique_id\":\"source.marketing_attribution.raw.touchpoints\",\"name\":\"raw.touchpoints\",\"status\":\"error\",\"max_loaded_at\":\"2026-08-10T19:04:07.480160+00:00\",\"age_s\":2679838.332898,\"warn_after\":\"2 day\",\"error_after\":\"7 day\",\"message\":\"error: max_loaded_at is 31.0 days old (error after 7 day)\"}",
+        "claim": "The dbt source freshness check failed for raw.touchpoints because max_loaded_at was evaluated as 31.0 days old against an error threshold of 7 days."
+       },
+       {
+        "tool_call_id": "T7",
+        "claim": "The maximum touched_at timestamp in raw.touchpoints is March 14, 2026 at 03:36:01.",
+        "excerpt": "{\"columns\": [\"max_touched_at\", \"min_touched_at\", \"cnt\"], \"rows\": [[\"2026-03-14 03:36:01.667102\", \"2025-12-02 00:00:28.668910\", 170402]], \"row_count\": 1, \"elapsed_s\": 0.004}"
+       },
+       {
+        "excerpt": "data_as_of: '2026-04-14'",
+        "claim": "The dbt project configuration defines the dataset reference date data_as_of as April 14, 2026.",
+        "tool_call_id": "T6"
+       },
+       {
+        "excerpt": "loaded_at_query: |\n          select cast(current_timestamp as timestamp)\n                 - (cast('{{ var(\"data_as_of\") }}' as timestamp) - max(touched_at))\n          from {{ this }}",
+        "claim": "The loaded_at_query for raw.touchpoints computes freshness relative to the difference between data_as_of and max(touched_at).",
+        "tool_call_id": "T4"
+       }
+      ]
+     },
+     "id": "call_1977261"
+    }
+   ],
+   "usage": {
+    "input_tokens": 9712,
+    "output_tokens": 2548,
+    "total_tokens": 12260
+   }
+  },
+  {
+   "node": "hypothesis_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "HypothesisSet",
+     "args": {
+      "hypotheses": [
+       {
+        "category": "source_freshness",
+        "evidence_ids": [
+         "E1",
+         "E2",
+         "E3",
+         "E4"
+        ],
+        "fix_kind": "upstream_data_issue",
+        "root_cause": "The raw.touchpoints source table has not been updated since March 14, 2026, making it 31 days stale relative to the reference date of April 14, 2026 and violating the 7-day freshness limit.",
+        "confidence": 0.95,
+        "recommended_action": "Investigate and restart the upstream ingestion pipeline for raw.touchpoints to load data past March 14, 2026."
+       }
+      ]
+     },
+     "id": "call_2317906"
+    }
+   ],
+   "usage": {
+    "input_tokens": 1260,
+    "output_tokens": 1230,
+    "total_tokens": 2490
+   }
+  }
+ ],
+ "tool_records": [
+  {
+   "id": "T1",
+   "tool": "get_run_results",
+   "args": {},
+   "output": "[T1 get_run_results]\n{\"generated_at\":\"2026-09-10T19:28:05.829056Z\",\"total\":1,\"status_counts\":{\"error\":1},\"failing\":[{\"unique_id\":\"source.marketing_attribution.raw.touchpoints\",\"name\":\"raw.touchpoints\",\"status\":\"error\",\"max_loaded_at\":\"2026-08-10T19:04:07.480160+00:00\",\"age_s\":2679838.332898,\"warn_after\":\"2 day\",\"error_after\":\"7 day\",\"message\":\"error: max_loaded_at is 31.0 days old (error after 7 day)\"}],\"warning\":[]}",
+   "error": false,
+   "api_call_id": "call_562011",
+   "repeat_of": null
+  },
+  {
+   "id": "T2",
+   "tool": "list_pipeline_files",
+   "args": {},
+   "output": "[T2 list_pipeline_files]\n[\"dbt_marketing/dbt_project.yml\", \"dbt_marketing/macros/generate_schema_name.sql\", \"dbt_marketing/models/intermediate/_intermediate__models.yml\", \"dbt_marketing/models/intermediate/int_attribution_weights.sql\", \"dbt_marketing/models/intermediate/int_journeys.sql\", \"dbt_marketing/models/intermediate/int_sessions.sql\", \"dbt_marketing/models/intermediate/int_touchpoints_sessionized.sql\", \"dbt_marketing/models/marts/_marts__models.yml\", \"dbt_marketing/models/marts/dim_channels.sql\", \"dbt_marketing/models/marts/fct_attribution_channel.sql\", \"dbt_marketing/models/marts/fct_attribution_touchpoints.sql\", \"dbt_marketing/models/marts/fct_journey_features.sql\", \"dbt_marketing/models/marts/fct_journeys.sql\", \"dbt_marketing/models/marts/fct_sessions.sql\", \"dbt_marketing/models/marts/fct_touchpoints.sql\", \"dbt_marketing/models/staging/_sources.yml\", \"dbt_marketing/models/staging/_staging__models.yml\", \"dbt_marketing/models/staging/stg_conversions.sql\", \"dbt_marketing/models/staging/stg_kaggle_ads.sql\", \"dbt_marketing/models/staging/stg_touchpoints.sql\", \"dbt_marketing/profiles.yml\", \"dbt_marketing/tests/assert_attributed_conversions_reconcile.sql\", \"dbt_marketing/tests/assert_attribution_grain_is_unique.sql\", \"dbt_marketing/tests/assert_credit_sums_to_one.sql\", \"dbt_marketing/tests/assert_daily_touchpoint_volume.sql\", \"dbt_marketing/tests/assert_journey_length_reconciles.sql\", \"dbt_marketing/tests/assert_models_agree_on_single_touch.sql\", \"dbt_marketing/tests/assert_no_answer_key_leakage.sql\", \"dbt_marketing/tests/assert_no_post_outcome_features.sql\", \"dbt_marketing/tests/assert_sessions_partition_touchpoints.sql\", \"dbt_marketing/tests/assert_touches_precede_conversion.sql\"]",
+   "error": false,
+   "api_call_id": "call_562012",
+   "repeat_of": null
+  },
+  {
+   "id": "T3",
+   "tool": "get_lineage",
+   "args": {
+    "node": "raw.touchpoints",
+    "direction": "downstream"
+   },
+   "output": "[T3 get_lineage]\n{\"node\":\"source.marketing_attribution.raw.touchpoints\",\"direction\":\"downstream\",\"depth\":2,\"nodes\":[{\"unique_id\":\"source.marketing_attribution.raw.touchpoints\",\"name\":\"touchpoints\",\"resource_type\":\"source\",\"depth\":0,\"original_file_path\":\"models\\\\staging\\\\_sources.yml\"},{\"unique_id\":\"model.marketing_attribution.stg_touchpoints\",\"name\":\"stg_touchpoints\",\"resource_type\":\"model\",\"depth\":1,\"original_file_path\":\"models\\\\staging\\\\stg_touchpoints.sql\"},{\"unique_id\":\"model.marketing_attribution.int_touchpoints_sessionized\",\"name\":\"int_touchpoints_sessionized\",\"resource_type\":\"model\",\"depth\":2,\"original_file_path\":\"models\\\\intermediate\\\\int_touchpoints_sessionized.sql\"}],\"edges\":[[\"source.marketing_attribution.raw.touchpoints\",\"model.marketing_attribution.stg_touchpoints\"],[\"model.marketing_attribution.stg_touchpoints\",\"model.marketing_attribution.int_touchpoints_sessionized\"]],\"truncated\":false}",
+   "error": false,
+   "api_call_id": "call_1471248",
+   "repeat_of": null
+  },
+  {
+   "id": "T4",
+   "tool": "read_pipeline_file",
+   "args": {
+    "path": "dbt_marketing/models/staging/_sources.yml"
+   },
+   "output": "[T4 read_pipeline_file]\n# dbt_marketing/models/staging/_sources.yml (80 lines)\nversion: 2\n\nsources:\n  # ---------------------------------------------------------------------------\n  # Observable data. Everything downstream may read these.\n  # ---------------------------------------------------------------------------\n  - name: raw\n    description: >\n      Data as it arrived, written by attribution/ingest.py. Never edited in\n      place - it is reproducible from the Kaggle CSV plus the seeded generator.\n    schema: raw\n    tables:\n      - name: touchpoints\n        description: One row per marketing exposure. The observable journey.\n\n        # Freshness against the dataset's own clock, not the wall clock. The\n        # generator writes fixed dates (2026-01-01 to 2026-04-13), so\n        # comparing max(touched_at) to now() would fail forever on clean data.\n        # loaded_at_query returns \"now, minus how far max(touched_at) sits\n        # behind data_as_of\", which makes the age equal to\n        # data_as_of - max(touched_at): about a day on clean data, and 30 days\n        # if a load ever lands with backdated timestamps.\n        loaded_at_query: |\n          select cast(current_timestamp as timestamp)\n                 - (cast('{{ var(\"data_as_of\") }}' as timestamp) - max(touched_at))\n          from {{ this }}\n        freshness:\n          warn_after: {count: 2, period: day}\n          error_after: {count: 7, period: day}\n        columns:\n          - name: user_id\n            description: Synthetic user identifier.\n          - name: touch_number\n            description: 0-based position of this touch within the user's journey.\n          - name: touched_at\n            description: When the exposure happened.\n          - name: channel\n            description: Marketing channel (six values, see channels.py).\n          - name: campaign\n            description: Campaign within the channel, three per channel.\n          - name: cost\n            description: What we paid for this touch, USD. Organic and direct are free.\n\n      - name: conversions\n        description: One row per user, whether or not they converted.\n        columns:\n          - name: user_id\n          - name: converted\n          - name: journey_length\n            description: >\n              Touch count as recorded by the generator. We deliberately recount\n              it from touchpoints in int_journeys and test that the two agree -\n              see tests/assert_journey_length_reconciles.sql.\n          - name: converted_at\n          - name: revenue\n\n      - name: kaggle_ads\n        description: >\n          Real Facebook ad performance, 1,143 rows of ad-level aggregates. Used\n          only to calibrate the generator; it has no user IDs so it cannot\n          support attribution itself.\n\n  # ---------------------------------------------------------------------------\n  # ANSWER KEY. Declared so it is documented and so the leakage test can name\n  # it - NOT so it can be used. No model may depend on these tables.\n  # tests/assert_no_answer_key_leakage.sql enforces this at build time.\n  # ---------------------------------------------------------------------------\n  - name: answer_key\n    description: >\n      GROUND TRUTH - which touch actually caused each conversion, and the lift\n      parameters we planted. Reading these from any staging, intermediate or\n      marts model is target leakage: attribution models would score perfectly\n      and mean nothing. Phase 4 is the only consumer, and it reads them\n      directly rather than through dbt.\n    schema: raw\n    tables:\n      - name: true_effects\n        description: Per-touch record of whether that touch fired the conversion.\n      - name: channel_ground_truth\n        description: The planted per-channel conversion_lift.\n",
+   "error": false,
+   "api_call_id": "call_1471249",
+   "repeat_of": null
+  },
+  {
+   "id": "T5",
+   "tool": "get_recent_changes",
+   "args": {
+    "path": "dbt_marketing/models/staging/_sources.yml"
+   },
+   "output": "[T5 get_recent_changes]\ncommit a7ed1b5\nauthor kingjaiteh\ndate 2026-09-08\nsubject Add source freshness and a daily volume test on touchpoints\n\n\ndiff --git a/dbt_marketing/models/staging/_sources.yml b/dbt_marketing/models/staging/_sources.yml\nindex 2ddb894..d64e1db 100644\n--- a/dbt_marketing/models/staging/_sources.yml\n+++ b/dbt_marketing/models/staging/_sources.yml\n@@ -12,6 +12,21 @@ sources:\n     tables:\n       - name: touchpoints\n         description: One row per marketing exposure. The observable journey.\n+\n+        # Freshness against the dataset's own clock, not the wall clock. The\n+        # generator writes fixed dates (2026-01-01 to 2026-04-13), so\n+        # comparing max(touched_at) to now() would fail forever on clean data.\n+        # loaded_at_query returns \"now, minus how far max(touched_at) sits\n+        # behind data_as_of\", which makes the age equal to\n+        # data_as_of - max(touched_at): about a day on clean data, and 30 days\n+        # if a load ever lands with backdated timestamps.\n+        loaded_at_query: |\n+          select cast(current_timestamp as timestamp)\n+                 - (cast('{{ var(\"data_as_of\") }}' as timestamp) - max(touched_at))\n+          from {{ this }}\n+        freshness:\n+          warn_after: {count: 2, period: day}\n+          error_after: {count: 7, period: day}\n         columns:\n           - name: user_id\n             description: Synthetic user identifier.\ncommit edc243b\nauthor kingjaiteh\ndate 2026-07-27\nsubject Marketing attribution platform: raw layer and dbt transformation layer\n\n\ndiff --git a/dbt_marketing/models/staging/_sources.yml b/dbt_marketing/models/staging/_sources.yml\nnew file mode 100644\nindex 0000000..2ddb894\n--- /dev/null\n+++ b/dbt_marketing/models/staging/_sources.yml\n@@ -0,0 +1,65 @@\n+version: 2\n+\n+sources:\n+  # ---------------------------------------------------------------------------\n+  # Observable data. Everything downstream may read these.\n+  # ---------------------------------------------------------------------------\n+  - name: raw\n+    description: >\n+      Data as it arrived, written by attribution/ingest.py. Never edited in\n+      place - it is reproducible from the Kaggle CSV plus the seeded generator.\n+    schema: raw\n+    tables:\n+      - name: touchpoints\n+        description: One row per marketing exposure. The observable journey.\n+        columns:\n+          - name: user_id\n+            description: Synthetic user identifier.\n+          - name: touch_number\n+            description: 0-based position of this touch within the user's journey.\n+          - name: touched_at\n+            description: When the exposure happened.\n+          - name: channel\n+            description: Marketing channel (six values, see channels.py).\n+          - name: campaign\n+            description: Campaign within the channel, three per channel.\n+          - name: cost\n+            description: What we paid for this touch, USD. Organic and direct are free.\n+\n+      - name: conversions\n+        description: One row per user, whether or not they converted.\n+        columns:\n+          - name: user_id\n+          - name: converted\n+          - name: journey_length\n+            description: >\n+              Touch count as recorded by the generator. We deliberately recount\n+              it from touchpoints in int_journeys and test that the two agree -\n+              see tests/assert_journey_length_reconciles.sql.\n+          - name: converted_at\n+          - name: revenue\n+\n+      - name: kaggle_ads\n+        description: >\n+          Real Facebook ad performance, 1,143 rows of ad-level aggregates. Used\n+          only to calibrate the generator; it has no user IDs so it cannot\n+          support attribution itself.\n+\n+  # ---------------------------------------------------------------------------\n+  # ANSWER KEY. Declared so it is documented and so the leakage test can name\n+  # it - NOT so it can be used. No model may depend on these tables.\n+  # tests/assert_no_answer_key_leakage.sql enforces this at build time.\n+  # ---------------------------------------------------------------------------\n+  - name: answer_key\n+    description: >\n+      GROUND TRUTH - which touch actually caused each conversion, and the lift\n+      parameters we planted. Reading these from any staging, intermediate or\n+      marts model is target leakage: attribution models would score perfectly\n+      and mean nothing. Phase 4 is the only consumer, and it reads them\n+      directly rather than through dbt.\n+    schema: raw\n+    tables:\n+      - name: true_effects\n+        description: Per-touch record of whether that touch fired the conversion.\n+      - name: channel_ground_truth\n+        description: The planted per-channel conversion_lift.",
+   "error": false,
+   "api_call_id": "call_1471250",
+   "repeat_of": null
+  },
+  {
+   "id": "T6",
+   "tool": "read_pipeline_file",
+   "args": {
+    "path": "dbt_marketing/dbt_project.yml"
+   },
+   "output": "[T6 read_pipeline_file]\n# dbt_marketing/dbt_project.yml (67 lines)\nname: \"marketing_attribution\"\nversion: \"2.0.0\"\nconfig-version: 2\n\nprofile: \"marketing_attribution\"\n\nmodel-paths: [\"models\"]\nmacro-paths: [\"macros\"]\ntest-paths: [\"tests\"]\ntarget-path: \"target\"\nclean-targets: [\"target\", \"dbt_packages\"]\n\nflags:\n  send_anonymous_usage_stats: false\n\nvars:\n  # How long a gap between two touches starts a new session.\n  #\n  # The web-analytics default is 30 minutes, inherited from Google Analytics.\n  # That default assumes clickstream data - many events per visit, minutes\n  # apart. Our touchpoints are cross-channel marketing exposures with a mean\n  # gap of 3.5 days, so a 30-minute rule would put nearly every touch in its\n  # own session and the session layer would carry no information.\n  #\n  # 1440 minutes (24h) groups same-day multi-channel activity, which is the\n  # thing worth grouping here. Change it and re-run to see the grain move:\n  #   dbt build --vars 'session_gap_minutes: 30'\n  session_gap_minutes: 1440\n\n  # Half-life for the time-decay attribution model, in days: a touch this many\n  # days before the conversion carries half the weight of a touch at the moment\n  # of conversion.\n  #\n  # 7 days is the industry default, inherited from Google Ads. It is almost\n  # certainly WRONG for this data, and that is deliberate - see the note in\n  # int_attribution_weights.sql. Phase 2 established that defaults encode\n  # assumptions about data that isn't yours (the 30-minute session gap), and\n  # this is the same lesson with a knob attached. Sweep it:\n  #   dbt build --vars 'time_decay_half_life_days: 30'\n  time_decay_half_life_days: 7\n\n  # The dataset's \"today\". The generator writes fixed dates, so source\n  # freshness (models/staging/_sources.yml) measures age against this instead\n  # of the wall clock. Move it forward if the raw layer is regenerated.\n  data_as_of: '2026-04-14'\n\n  # Days from the first touch during which new journeys are still being\n  # started. generate.py draws journey_starts from uniform(0, window_days * 0.6)\n  # with window_days = 90, so daily volume is steady for 54 days and then decays\n  # as journeys finish. tests/assert_daily_touchpoint_volume.sql only judges\n  # the steady window; a decay is not a drop.\n  touchpoint_volume_window_days: 54\n\nmodels:\n  marketing_attribution:\n    staging:\n      +materialized: view\n      +schema: staging\n    intermediate:\n      # Intermediate models land in `staging` rather than a schema of their own\n      # so the database keeps the three-layer story (raw / staging / marts)\n      # described in the README. The `int_` prefix keeps them distinguishable.\n      +materialized: view\n      +schema: staging\n    marts:\n      +materialized: table\n      +schema: marts\n",
+   "error": false,
+   "api_call_id": "call_502540",
+   "repeat_of": null
+  },
+  {
+   "id": "T7",
+   "tool": "query_duckdb",
+   "args": {
+    "sql": "select max(touched_at) as max_touched_at, min(touched_at) as min_touched_at, count(*) as cnt from raw.touchpoints"
+   },
+   "output": "[T7 query_duckdb]\n{\"columns\": [\"max_touched_at\", \"min_touched_at\", \"cnt\"], \"rows\": [[\"2026-03-14 03:36:01.667102\", \"2025-12-02 00:00:28.668910\", 170402]], \"row_count\": 1, \"elapsed_s\": 0.004}",
+   "error": false,
+   "api_call_id": "call_502541",
+   "repeat_of": null
+  },
+  {
+   "id": "T8",
+   "tool": "get_recent_changes",
+   "args": {
+    "n": 10
+   },
+   "output": "[T8 get_recent_changes]\ncommit a7ed1b5\nauthor kingjaiteh\ndate 2026-09-08\nsubject Add source freshness and a daily volume test on touchpoints\n\n\ndiff --git a/README.md b/README.md\nindex df0fc7c..eccca8f 100644\n--- a/README.md\n+++ b/README.md\n@@ -189,7 +189,7 @@ attribution/            Python package\n   score.py              the only code permitted to read the answer key\n   models/               markov.py, shapley.py\n   ml/                   predict.py, budget.py\n-dbt_marketing/          dbt project: 14 models, 114 tests, no packages\n+dbt_marketing/          dbt project: 14 models, 115 tests, no packages\n dashboard/              Streamlit app, five pages\n data/marketing.duckdb   schemas: raw, staging, marts, eval\n ```\ndiff --git a/attribution/definitions.py b/attribution/definitions.py\nindex 8b9e103..586cc21 100644\n--- a/attribution/definitions.py\n+++ b/attribution/definitions.py\n@@ -300,7 +300,7 @@ def dbt_marketing_models(context: AssetExecutionContext, dbt: DbtCliResource):\n \n     Dagster picks the tests up as asset *checks* rather than assets, so a\n     failed `unique` test shows on the model it belongs to instead of as an\n-    unrelated red box somewhere in the graph. All 114 of them arrive for free\n+    unrelated red box somewhere in the graph. All 115 of them arrive for free\n     from the manifest - none are re-declared here.\n     \"\"\"\n     yield from dbt.cli([\"build\"], context=context).stream()\ndiff --git a/dashboard/views/overview.py b/dashboard/views/overview.py\nindex ece9d6a..b75cb95 100644\n--- a/dashboard/views/overview.py\n+++ b/dashboard/views/overview.py\n@@ -65,11 +65,11 @@ answer key there is no way to discover that.\n | Layer | Built by |\n |---|---|\n | `raw` | a seeded journey simulator |\n-| `staging` → `marts` | dbt: 14 models, 114 tests |\n+| `staging` → `marts` | dbt: 14 models, 115 tests |\n | Markov + Shapley | Python (not expressible in SQL) |\n | `eval` | scoring against the answer key |\n \n-All of it runs as one Dagster asset graph — 30 assets, 116 checks,\n+All of it runs as one Dagster asset graph — 30 assets, 117 checks,\n one command, about 25 seconds from an empty directory.\n             \"\"\"\n         )\ndiff --git a/dbt_marketing/dbt_project.yml b/dbt_marketing/dbt_project.yml\nindex ed5ef6e..f26ff55 100644\n--- a/dbt_marketing/dbt_project.yml\n+++ b/dbt_marketing/dbt_project.yml\n@@ -39,6 +39,18 @@ vars:\n   #   dbt build --vars 'time_decay_half_life_days: 30'\n   time_decay_half_life_days: 7\n \n+  # The dataset's \"today\". The generator writes fixed dates, so source\n+  # freshness (models/staging/_sources.yml) measures age against this instead\n+  # of the wall clock. Move it forward if the raw layer is regenerated.\n+  data_as_of: '2026-04-14'\n+\n+  # Days from the first touch during which new journeys are still being\n+  # started. generate.py draws journey_starts from uniform(0, window_days * 0.6)\n+  # with window_days = 90, so daily volume is steady for 54 days and then decays\n+  # as journeys finish. tests/assert_daily_touchpoint_volume.sql only judges\n+  # the steady window; a decay is not a drop.\n+  touchpoint_volume_window_days: 54\n+\n models:\n   marketing_attribution:\n     staging:\ndiff --git a/dbt_marketing/models/staging/_sources.yml b/dbt_marketing/models/staging/_sources.yml\nindex 2ddb894..d64e1db 100644\n--- a/dbt_marketing/models/staging/_sources.yml\n+++ b/dbt_marketing/models/staging/_sources.yml\n@@ -12,6 +12,21 @@ sources:\n     tables:\n       - name: touchpoints\n         description: One row per marketing exposure. The observable journey.\n+\n+        # Freshness against the dataset's own clock, not the wall clock. The\n+        # generator writes fixed dates (2026-01-01 to 2026-04-13), so\n+        # comparing max(touched_at) to now() would fail forever on clean data.\n+        # loaded_at_query returns \"now, minus how far max(touched_at) sits\n+        # behind data_as_of\", which makes the age equal to\n+        # data_as_of - max(touched_at): about a day on clean data, and 30 days\n+        # if a load ever lands with backdated timestamps.\n+        loaded_at_query: |\n+          select cast(current_timestamp as timestamp)\n+                 - (cast('{{ var(\"data_as_of\") }}' as timestamp) - max(touched_at))\n+          from {{ this }}\n+        freshness:\n+          warn_after: {count: 2, period: day}\n+          error_after: {count: 7, period: day}\n         columns:\n           - name: user_id\n             description: Synthetic user identifier.\ndiff --git a/dbt_marketing/tests/assert_daily_touchpoint_volume.sql b/dbt_marketing/tests/assert_daily_touchpoint_volume.sql\nnew file mode 100644\nindex 0000000..7014dc1\n--- /dev/null\n+++ b/dbt_marketing/tests/assert_daily_touchpoint_volume.sql\n@@ -0,0 +1,70 @@\n+{#- One parent, so dagster-dbt turns this into an asset check on\n+    stg_touchpoints without a meta hint (see assert_touches_precede_conversion\n+    for the multi-parent case). -#}\n+\n+-- Volume drop detection. A day whose touchpoint count is below half the\n+-- median of the seven days before it is a failure. Half the trailing median is\n+-- deliberately loose: normal day-to-day noise here is well under 20%, so this\n+-- only fires when a chunk of a day is missing, which is what a partial load or\n+-- a truncated export looks like.\n+--\n+-- Scoped to the steady-state window. generate.py starts new journeys for the\n+-- first window_days * 0.6 = 54 days and then only finishes existing ones, so\n+-- volume decays by design from day 55 onwards. Judging that decay would fail\n+-- on clean data, so the window is a var (touchpoint_volume_window_days) and\n+-- the test stops at the end of it. The first seven days are skipped because a\n+-- trailing median needs seven prior days to mean anything.\n+\n+with daily as (\n+\n+    select\n+        cast(touched_at as date) as touch_date,\n+        count(*)                 as touch_count\n+    from {{ ref('stg_touchpoints') }}\n+    group by 1\n+\n+),\n+\n+steady_window as (\n+\n+    select\n+        min(touch_date) + interval {{ var('touchpoint_volume_window_days') }} day\n+            as ends_before\n+    from daily\n+\n+),\n+\n+with_trailing as (\n+\n+    select\n+        touch_date,\n+        touch_count,\n+\n+        median(touch_count) over (\n+            order by touch_date\n+            rows between 7 preceding and 1 preceding\n+        ) as trailing_median,\n+\n+        count(*) over (\n+            order by touch_date\n+            rows between 7 preceding and 1 preceding\n+        ) as trailing_days\n+\n+    from daily\n+\n+)\n+\n+select\n+    t.touch_date,\n+    t.touch_count,\n+    t.trailing_median,\n+    round(100.0 * t.touch_count / t.trailing_median, 1) as pct_of_trailing_median\n+\n+from with_trailing t\n+cross join steady_window w\n+\n+where t.touch_date < w.ends_before\n+  and t.trailing_days = 7\n+  and t.touch_count < 0.5 * t.trailing_median\n+\n+order by t.touch_date\ncommit 485cefb\nauthor kingjaiteh\ndate 2026-07-28\nsubject Rewrite README for a recruiter-facing audience\n\n\ndiff --git a/README.md b/README.md\nindex 7761ae4..df0fc7c 100644\n--- a/README.md\n+++ b/README.md\n@@ -1,24 +1,46 @@\n # Marketing Attribution Platform\n \n-A multi-touch marketing attribution platform on DuckDB, dbt, Dagster and\n-Streamlit. Seven attribution models are implemented, scored against a known\n-ground truth, and turned into budget decisions.\n-\n-One command builds everything from an empty directory in about 25 seconds.\n+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)\n+![dbt](https://img.shields.io/badge/dbt-Core-FF694B?logo=dbt&logoColor=white)\n+![Dagster](https://img.shields.io/badge/Dagster-orchestration-654AF3?logo=dagster&logoColor=white)\n+![DuckDB](https://img.shields.io/badge/DuckDB-embedded%20OLAP-FFF000?logo=duckdb&logoColor=black)\n+![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B?logo=streamlit&logoColor=white)\n+\n+A multi-touch marketing attribution platform: a layered DuckDB warehouse built\n+with dbt, orchestrated end to end by Dagster, scored against a known ground\n+truth, and served through a Streamlit dashboard. One comman\n...[truncated at 8000 chars]",
+   "error": false,
+   "api_call_id": "call_1901179",
+   "repeat_of": null
+  }
+ ],
+ "hypotheses": [
+  {
+   "rank": 1,
+   "root_cause": "The raw.touchpoints source table has not been updated since March 14, 2026, making it 31 days stale relative to the reference date of April 14, 2026 and violating the 7-day freshness limit.",
+   "category": "source_freshness",
+   "evidence_ids": [
+    "E1",
+    "E2",
+    "E3",
+    "E4"
+   ],
+   "confidence": 0.95,
+   "fix_kind": "upstream_data_issue",
+   "recommended_action": "Investigate and restart the upstream ingestion pipeline for raw.touchpoints to load data past March 14, 2026."
+  }
+ ],
+ "hallucinations": [],
+ "budget": {
+  "tool_calls": 8,
+  "repeated_calls": 0,
+  "llm_calls": 7,
+  "tokens": 32978,
+  "max_tool_calls": 10,
+  "max_llm_calls": 20,
+  "max_tokens": 200000
+ },
+ "status": "done"
+}

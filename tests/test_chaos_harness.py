@@ -181,6 +181,7 @@ def _scenario(**overrides) -> Scenario:
         "fix_kind": "code_patch",
         "expected_failing": ("dim_channels",),
         "error_contains": "Binder Error",
+        "root_cause_terms": ("touch_cnt",),
         "apply": lambda ctx: None,
     }
     base.update(overrides)

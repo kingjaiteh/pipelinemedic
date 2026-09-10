@@ -25,6 +25,7 @@ class Scenario:
     fix_kind: str
     expected_failing: tuple[str, ...]
     error_contains: str
+    root_cause_terms: tuple[str, ...]
     apply: Callable[[MutationContext], None]
 
     @property
@@ -48,6 +49,7 @@ def load_scenarios(path: Path = SCENARIOS_YAML) -> dict[int, Scenario]:
             fix_kind=entry["fix_kind"],
             expected_failing=tuple(entry["expected_failing"]),
             error_contains=entry["error_contains"],
+            root_cause_terms=tuple(entry.get("root_cause_terms", [])),
             apply=module.apply,
         )
     return dict(sorted(scenarios.items()))

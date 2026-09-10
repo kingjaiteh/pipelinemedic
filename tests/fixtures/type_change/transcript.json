@@ -1,0 +1,305 @@
+{
+ "scenario_key": "type_change",
+ "model": "gemini-3.1-flash-lite",
+ "incident": {
+  "source": "chaos",
+  "run_id": "chaos-type_change",
+  "scenario": 4,
+  "scenario_key": "type_change",
+  "dbt_args": [
+   "build"
+  ],
+  "artifact": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\type_change\\repo\\dbt_marketing\\target\\run_results.json",
+  "manifest": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\type_change\\repo\\dbt_marketing\\target\\manifest.json",
+  "sandbox_dir": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\type_change",
+  "duckdb": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\type_change\\marketing.duckdb",
+  "repo": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\type_change\\repo",
+  "failing_nodes": [
+   {
+    "unique_id": "test.marketing_attribution.not_null_stg_touchpoints_touch_cost_usd.fa364545aa",
+    "name": "not_null_stg_touchpoints_touch_cost_usd",
+    "resource_type": "test",
+    "status": "error",
+    "message": "Runtime Error in test not_null_stg_touchpoints_touch_cost_usd (models\\staging\\_staging__models.yml)\n  Conversion Error: Could not convert string 'n/a' to DOUBLE when casting from source column cost"
+   }
+  ],
+  "status_counts": {
+   "success": 3,
+   "pass": 19,
+   "error": 1,
+   "skipped": 106
+  }
+ },
+ "llm_turns": [
+  {
+   "node": "triage_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "TriageVerdict",
+     "args": {
+      "confidence": 0.9,
+      "rationale": "Conversion Error: Could not convert string 'n/a' to DOUBLE when casting from source column cost indicates an unexpected data type in the source.",
+      "category": "schema_drift"
+     },
+     "id": "call_2015511"
+    }
+   ],
+   "usage": {
+    "input_tokens": 613,
+    "output_tokens": 59,
+    "total_tokens": 672
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "get_lineage",
+     "args": {
+      "node": "stg_touchpoints"
+     },
+     "id": "call_2859168"
+    }
+   ],
+   "usage": {
+    "input_tokens": 1814,
+    "output_tokens": 21,
+    "total_tokens": 1835
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "read_pipeline_file",
+     "args": {
+      "path": "models/staging/stg_touchpoints.sql"
+     },
+     "id": "call_1500112"
+    }
+   ],
+   "usage": {
+    "input_tokens": 2012,
+    "output_tokens": 28,
+    "total_tokens": 2040
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "query_duckdb",
+     "args": {
+      "sql": "SELECT cost, count(*) FROM raw.touchpoints WHERE cost = 'n/a' GROUP BY 1"
+     },
+     "id": "call_2084462"
+    }
+   ],
+   "usage": {
+    "input_tokens": 2460,
+    "output_tokens": 38,
+    "total_tokens": 2498
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "get_recent_changes",
+     "args": {
+      "path": "models/staging/stg_touchpoints.sql",
+      "n": 5
+     },
+     "id": "call_1975720"
+    }
+   ],
+   "usage": {
+    "input_tokens": 2565,
+    "output_tokens": 32,
+    "total_tokens": 2597
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "SubmitEvidence",
+     "args": {
+      "evidence": [
+       {
+        "claim": "The model `stg_touchpoints` attempts to cast the `cost` column to a double, which fails when the source contains string values like 'n/a'.",
+        "excerpt": "Runtime Error in test not_null_stg_touchpoints_touch_cost_usd (models\\staging\\_staging__models.yml)\n  Conversion Error: Could not convert string 'n/a' to DOUBLE when casting from source column cost",
+        "tool_call_id": "T0"
+       },
+       {
+        "tool_call_id": "T2",
+        "excerpt": "cast(cost as double)             as touch_cost_usd",
+        "claim": "The `stg_touchpoints` model explicitly casts `cost` to a double."
+       },
+       {
+        "tool_call_id": "T3",
+        "excerpt": "{\"columns\": [\"cost\", \"count_star()\"], \"rows\": [[\"n/a\", 37]], \"row_count\": 1, \"elapsed_s\": 0.007}",
+        "claim": "Querying the `raw.touchpoints` source reveals there are 37 rows where the `cost` column is set to the string 'n/a'."
+       }
+      ],
+      "summary": "The dbt build failed because the `stg_touchpoints` model is attempting to cast a source column (`cost`) to a numeric type, but the source contains non-numeric strings ('n/a'). This indicates a schema or data quality issue where 'n/a' values were introduced into the source table."
+     },
+     "id": "call_1988462"
+    }
+   ],
+   "usage": {
+    "input_tokens": 3192,
+    "output_tokens": 341,
+    "total_tokens": 3533
+   }
+  },
+  {
+   "node": "hypothesis_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "HypothesisSet",
+     "args": {
+      "hypotheses": [
+       {
+        "fix_kind": "upstream_data_issue",
+        "recommended_action": "Notify the upstream data provider that the cost column in raw.touchpoints contains invalid 'n/a' strings that should be nulls or zeros.",
+        "evidence_ids": [
+         "E1",
+         "E3"
+        ],
+        "confidence": 0.95,
+        "root_cause": "The upstream raw.touchpoints table contains 37 rows where the cost column is set to the string 'n/a', which causes the staging model cast to fail.",
+        "category": "data_quality"
+       },
+       {
+        "category": "code_error",
+        "confidence": 0.8,
+        "root_cause": "The staging model stg_touchpoints uses a direct cast(cost as double) which does not account for non-numeric sentinel values like 'n/a' present in the source data.",
+        "recommended_action": "Update the stg_touchpoints model to defensively cast the cost column, handling 'n/a' values by converting them to null before casting to double.",
+        "evidence_ids": [
+         "E1",
+         "E2"
+        ],
+        "fix_kind": "code_patch"
+       }
+      ]
+     },
+     "id": "call_1990019"
+    }
+   ],
+   "usage": {
+    "input_tokens": 1097,
+    "output_tokens": 258,
+    "total_tokens": 1355
+   }
+  }
+ ],
+ "tool_records": [
+  {
+   "id": "T1",
+   "tool": "get_lineage",
+   "args": {
+    "node": "stg_touchpoints"
+   },
+   "output": "[T1 get_lineage]\n{\"node\":\"model.marketing_attribution.stg_touchpoints\",\"direction\":\"upstream\",\"depth\":2,\"nodes\":[{\"unique_id\":\"model.marketing_attribution.stg_touchpoints\",\"name\":\"stg_touchpoints\",\"resource_type\":\"model\",\"depth\":0,\"original_file_path\":\"models\\\\staging\\\\stg_touchpoints.sql\"},{\"unique_id\":\"source.marketing_attribution.raw.touchpoints\",\"name\":\"touchpoints\",\"resource_type\":\"source\",\"depth\":1,\"original_file_path\":\"models\\\\staging\\\\_sources.yml\"}],\"edges\":[[\"source.marketing_attribution.raw.touchpoints\",\"model.marketing_attribution.stg_touchpoints\"]],\"truncated\":false}",
+   "error": false,
+   "api_call_id": "call_2859168",
+   "repeat_of": null
+  },
+  {
+   "id": "T2",
+   "tool": "read_pipeline_file",
+   "args": {
+    "path": "models/staging/stg_touchpoints.sql"
+   },
+   "output": "[T2 read_pipeline_file]\n# dbt_marketing/models/staging/stg_touchpoints.sql (42 lines)\n-- One row per marketing touch, cleaned and typed. No business logic.\n--\n-- Staging's job is to make the source safe to build on: stable column names,\n-- explicit types, trimmed strings. Anything that involves a decision about\n-- meaning (what counts as a session, which touch gets credit) belongs\n-- downstream. Keeping that line sharp is what makes it possible to say\n-- \"the source is fine, the logic is wrong\" when a number looks off.\n\nwith source as (\n\n    select * from {{ source('raw', 'touchpoints') }}\n\n),\n\nrenamed as (\n\n    select\n        -- Composite key. The generator has no touch-level id, so we build one\n        -- from the natural key; the tests below assert it is actually unique.\n        cast(user_id as varchar) || '-' || cast(touch_number as varchar)\n            as touchpoint_id,\n\n        cast(user_id as bigint)          as user_id,\n\n        -- Left 0-based here on purpose: renaming is staging's job, re-indexing\n        -- is not. int_touchpoints_sessionized derives a 1-based touch_seq.\n        cast(touch_number as integer)    as touch_index,\n\n        -- raw arrives as TIMESTAMP_NS from pandas. Nothing here needs\n        -- nanoseconds, and the wider type propagates awkwardly into joins.\n        cast(touched_at as timestamp)    as touched_at,\n\n        lower(trim(channel))             as channel,\n        lower(trim(campaign))            as campaign,\n\n        cast(cost as double)             as touch_cost_usd\n\n    from source\n\n)\n\nselect * from renamed\n",
+   "error": false,
+   "api_call_id": "call_1500112",
+   "repeat_of": null
+  },
+  {
+   "id": "T3",
+   "tool": "query_duckdb",
+   "args": {
+    "sql": "SELECT cost, count(*) FROM raw.touchpoints WHERE cost = 'n/a' GROUP BY 1"
+   },
+   "output": "[T3 query_duckdb]\n{\"columns\": [\"cost\", \"count_star()\"], \"rows\": [[\"n/a\", 37]], \"row_count\": 1, \"elapsed_s\": 0.007}",
+   "error": false,
+   "api_call_id": "call_2084462",
+   "repeat_of": null
+  },
+  {
+   "id": "T4",
+   "tool": "get_recent_changes",
+   "args": {
+    "path": "models/staging/stg_touchpoints.sql",
+    "n": 5
+   },
+   "output": "[T4 get_recent_changes]\ncommit edc243b\nauthor kingjaiteh\ndate 2026-07-27\nsubject Marketing attribution platform: raw layer and dbt transformation layer\n\n\ndiff --git a/dbt_marketing/models/staging/stg_touchpoints.sql b/dbt_marketing/models/staging/stg_touchpoints.sql\nnew file mode 100644\nindex 0000000..1dad983\n--- /dev/null\n+++ b/dbt_marketing/models/staging/stg_touchpoints.sql\n@@ -0,0 +1,42 @@\n+-- One row per marketing touch, cleaned and typed. No business logic.\n+--\n+-- Staging's job is to make the source safe to build on: stable column names,\n+-- explicit types, trimmed strings. Anything that involves a decision about\n+-- meaning (what counts as a session, which touch gets credit) belongs\n+-- downstream. Keeping that line sharp is what makes it possible to say\n+-- \"the source is fine, the logic is wrong\" when a number looks off.\n+\n+with source as (\n+\n+    select * from {{ source('raw', 'touchpoints') }}\n+\n+),\n+\n+renamed as (\n+\n+    select\n+        -- Composite key. The generator has no touch-level id, so we build one\n+        -- from the natural key; the tests below assert it is actually unique.\n+        cast(user_id as varchar) || '-' || cast(touch_number as varchar)\n+            as touchpoint_id,\n+\n+        cast(user_id as bigint)          as user_id,\n+\n+        -- Left 0-based here on purpose: renaming is staging's job, re-indexing\n+        -- is not. int_touchpoints_sessionized derives a 1-based touch_seq.\n+        cast(touch_number as integer)    as touch_index,\n+\n+        -- raw arrives as TIMESTAMP_NS from pandas. Nothing here needs\n+        -- nanoseconds, and the wider type propagates awkwardly into joins.\n+        cast(touched_at as timestamp)    as touched_at,\n+\n+        lower(trim(channel))             as channel,\n+        lower(trim(campaign))            as campaign,\n+\n+        cast(cost as double)             as touch_cost_usd\n+\n+    from source\n+\n+)\n+\n+select * from renamed",
+   "error": false,
+   "api_call_id": "call_1975720",
+   "repeat_of": null
+  }
+ ],
+ "hypotheses": [
+  {
+   "rank": 1,
+   "root_cause": "The upstream raw.touchpoints table contains 37 rows where the cost column is set to the string 'n/a', which causes the staging model cast to fail.",
+   "category": "data_quality",
+   "evidence_ids": [
+    "E3"
+   ],
+   "confidence": 0.95,
+   "fix_kind": "upstream_data_issue",
+   "recommended_action": "Notify the upstream data provider that the cost column in raw.touchpoints contains invalid 'n/a' strings that should be nulls or zeros."
+  },
+  {
+   "rank": 2,
+   "root_cause": "The staging model stg_touchpoints uses a direct cast(cost as double) which does not account for non-numeric sentinel values like 'n/a' present in the source data.",
+   "category": "code_error",
+   "evidence_ids": [
+    "E2"
+   ],
+   "confidence": 0.8,
+   "fix_kind": "code_patch",
+   "recommended_action": "Update the stg_touchpoints model to defensively cast the cost column, handling 'n/a' values by converting them to null before casting to double."
+  }
+ ],
+ "hallucinations": [
+  {
+   "kind": "evidence",
+   "ref": "E1",
+   "claim": "The model `stg_touchpoints` attempts to cast the `cost` column to a double, which fails when the source contains string values like 'n/a'.",
+   "reason": "cites unknown tool_call_id 'T0'"
+  },
+  {
+   "kind": "hypothesis",
+   "ref": "rank 1",
+   "claim": "The upstream raw.touchpoints table contains 37 rows where the cost column is set to the string 'n/a', which causes the staging model cast to fail.",
+   "reason": "dropped citations that did not survive: E1"
+  },
+  {
+   "kind": "hypothesis",
+   "ref": "rank 2",
+   "claim": "The staging model stg_touchpoints uses a direct cast(cost as double) which does not account for non-numeric sentinel values like 'n/a' present in the source data.",
+   "reason": "dropped citations that did not survive: E1"
+  }
+ ],
+ "budget": {
+  "tool_calls": 4,
+  "repeated_calls": 0,
+  "llm_calls": 7,
+  "tokens": 14530,
+  "max_tool_calls": 12,
+  "max_llm_calls": 20,
+  "max_tokens": 200000
+ },
+ "status": "done"
+}

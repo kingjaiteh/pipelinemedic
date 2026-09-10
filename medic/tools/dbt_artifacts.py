@@ -324,8 +324,12 @@ def make_dbt_artifact_tools(manifest_path: Path, run_results_path: Path) -> list
 
     @tool
     def get_run_results() -> str:
-        """Summarize the latest dbt run: which nodes failed, their error messages,
-        which were skipped as a consequence, and status counts. Call this first."""
+        """Summarize the failed dbt command: which nodes failed, their error
+        messages, which were skipped as a consequence, and status counts. When the
+        failed command was `dbt source freshness`, returns the per-source freshness
+        status and age instead. Call this first."""
+        if Path(run_results_path).name == "sources.json":
+            return summarize_source_freshness(run_results_path).model_dump_json(indent=None)
         summary = summarize_run_results(run_results_path)
         return summary.model_dump_json(indent=None)
 

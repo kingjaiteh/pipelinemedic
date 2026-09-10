@@ -3,10 +3,14 @@
 # node names or unique_ids; the run counts as reproduced when dbt exits non-zero,
 # at least one expected node is among the failures, and error_contains appears
 # in a failure message. Expectations were set from observed runs on 2026-09-10.
+# root_cause_terms grade a hypothesis: every term must appear in the top-1 root
+# cause plus recommended action (case-insensitive); a term with '|' lists
+# alternatives.
 
 scenarios:
   - number: 1
     key: renamed_column
+    root_cause_terms: ["marketing_channel"]
     title: Renamed source column
     mutation: "ALTER TABLE raw.touchpoints RENAME COLUMN channel TO marketing_channel"
     dbt_args: [build]
@@ -17,6 +21,7 @@ scenarios:
 
   - number: 2
     key: null_flood
+    root_cause_terms: ["null", "user_id"]
     title: Null flood
     mutation: "user_id set to NULL on 30% of raw.touchpoints (hash-selected, deterministic)"
     dbt_args: [build]
@@ -27,6 +32,7 @@ scenarios:
 
   - number: 3
     key: duplicate_keys
+    root_cause_terms: ["duplicate", "touchpoint"]
     title: Duplicate keys
     mutation: "one day (2026-02-10) of raw.touchpoints re-inserted"
     dbt_args: [build]
@@ -37,6 +43,7 @@ scenarios:
 
   - number: 4
     key: type_change
+    root_cause_terms: ["cost", "varchar|text|string|n/a"]
     title: Type change
     mutation: "raw.touchpoints.cost recreated as VARCHAR with 'n/a' in about 1 row per 5000"
     dbt_args: [build]
@@ -47,6 +54,7 @@ scenarios:
 
   - number: 5
     key: bad_commit
+    root_cause_terms: ["touch_cnt"]
     title: Bad commit
     mutation: "commit on the sandbox branch changes c.touch_count to c.touch_cnt in dim_channels.sql"
     dbt_args: [build]
@@ -57,6 +65,7 @@ scenarios:
 
   - number: 6
     key: stale_source
+    root_cause_terms: ["touchpoints|touched_at", "stale|30 day|31 day|backdated|old"]
     title: Stale source
     mutation: "raw.touchpoints.touched_at shifted back 30 days"
     dbt_args: [source, freshness]
@@ -67,6 +76,7 @@ scenarios:
 
   - number: 7
     key: volume_drop
+    root_cause_terms: ["2026-02-10", "volume|drop|missing|fewer|80"]
     title: Volume drop
     mutation: "80% of raw.touchpoints rows on 2026-02-10 deleted (hash-selected, deterministic)"
     dbt_args: [build]

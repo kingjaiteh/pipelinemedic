@@ -1,0 +1,364 @@
+{
+ "scenario_key": "bad_commit",
+ "model": "gemini-3.6-flash",
+ "incident": {
+  "source": "chaos",
+  "run_id": "chaos-bad_commit",
+  "scenario": 5,
+  "scenario_key": "bad_commit",
+  "dbt_args": [
+   "build"
+  ],
+  "artifact": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\bad_commit\\repo\\dbt_marketing\\target\\run_results.json",
+  "manifest": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\bad_commit\\repo\\dbt_marketing\\target\\manifest.json",
+  "sandbox_dir": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\bad_commit",
+  "duckdb": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\bad_commit\\marketing.duckdb",
+  "repo": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\bad_commit\\repo",
+  "failing_nodes": [
+   {
+    "unique_id": "model.marketing_attribution.dim_channels",
+    "name": "dim_channels",
+    "resource_type": "model",
+    "status": "error",
+    "message": "Runtime Error in model dim_channels (models\\marts\\dim_channels.sql)\n  Binder Error: Values list \"c\" does not have a column named \"touch_cnt\"\n  \n  LINE 86:     c.touch_cnt,\n               ^"
+   }
+  ],
+  "status_counts": {
+   "success": 12,
+   "pass": 95,
+   "error": 1,
+   "skipped": 21
+  }
+ },
+ "llm_turns": [
+  {
+   "node": "triage_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "TriageVerdict",
+     "args": {
+      "category": "code_error",
+      "confidence": 0.95,
+      "rationale": "Binder Error: Values list \"c\" does not have a column named \"touch_cnt\""
+     },
+     "id": "call_1659435"
+    }
+   ],
+   "usage": {
+    "input_tokens": 587,
+    "output_tokens": 561,
+    "total_tokens": 1148
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "get_run_results",
+     "args": {},
+     "id": "call_2560825"
+    },
+    {
+     "name": "get_lineage",
+     "args": {
+      "node": "dim_channels",
+      "direction": "upstream"
+     },
+     "id": "call_2560826"
+    }
+   ],
+   "usage": {
+    "input_tokens": 1756,
+    "output_tokens": 251,
+    "total_tokens": 2007
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "read_pipeline_file",
+     "args": {
+      "path": "models/marts/dim_channels.sql"
+     },
+     "id": "call_2307381"
+    },
+    {
+     "name": "get_recent_changes",
+     "args": {
+      "n": 5
+     },
+     "id": "call_2307382"
+    }
+   ],
+   "usage": {
+    "input_tokens": 3307,
+    "output_tokens": 130,
+    "total_tokens": 3437
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "list_pipeline_files",
+     "args": {
+      "subdir": "models/marts"
+     },
+     "id": "call_2502707"
+    }
+   ],
+   "usage": {
+    "input_tokens": 7284,
+    "output_tokens": 281,
+    "total_tokens": 7565
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "list_pipeline_files",
+     "args": {
+      "subdir": "dbt_marketing/models/marts"
+     },
+     "id": "call_1391600"
+    }
+   ],
+   "usage": {
+    "input_tokens": 7603,
+    "output_tokens": 43,
+    "total_tokens": 7646
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "read_pipeline_file",
+     "args": {
+      "path": "dbt_marketing/models/marts/_marts__models.yml"
+     },
+     "id": "call_2435087"
+    }
+   ],
+   "usage": {
+    "input_tokens": 7823,
+    "output_tokens": 55,
+    "total_tokens": 7878
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "query_duckdb",
+     "args": {
+      "sql": "select column_name, data_type from information_schema.columns where table_name = 'stg_touchpoints'"
+     },
+     "id": "call_2224074"
+    }
+   ],
+   "usage": {
+    "input_tokens": 9968,
+    "output_tokens": 480,
+    "total_tokens": 10448
+   }
+  },
+  {
+   "node": "investigator_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "SubmitEvidence",
+     "args": {
+      "evidence": [
+       {
+        "tool_call_id": "T1",
+        "excerpt": "\"message\":\"Runtime Error in model dim_channels (models\\\\marts\\\\dim_channels.sql)\\n  Binder Error: Values list \\\"c\\\" does not have a column named \\\"touch_cnt\\\"\\n  \\n  LINE 86:     c.touch_cnt,\\n               ^\"",
+        "claim": "The dbt build run failed on model dim_channels with a DuckDB Binder Error indicating column touch_cnt does not exist in CTE alias c."
+       },
+       {
+        "claim": "Recent commit ab4cfdb modified dim_channels.sql by changing c.touch_count to c.touch_cnt in the outer SELECT statement.",
+        "tool_call_id": "T4",
+        "excerpt": "-    c.touch_count,\n+    c.touch_cnt,"
+       },
+       {
+        "excerpt": "count(*)                                        as touch_count,",
+        "tool_call_id": "T3",
+        "claim": "The upstream CTE by_channel in dim_channels.sql defines the column alias as touch_count."
+       },
+       {
+        "claim": "The schema configuration in _marts__models.yml expects the model column to be named touch_count.",
+        "excerpt": "- name: touch_count",
+        "tool_call_id": "T7"
+       }
+      ],
+      "summary": "The dbt build command failed on dim_channels due to a SQL column name mismatch where the main query referenced c.touch_cnt instead of c.touch_count. Commit ab4cfdb mistakenly renamed the column reference to touch_cnt while the by_channel CTE and model schema definition both use touch_count."
+     },
+     "id": "call_366392"
+    }
+   ],
+   "usage": {
+    "input_tokens": 10566,
+    "output_tokens": 2720,
+    "total_tokens": 13286
+   }
+  },
+  {
+   "node": "hypothesis_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "HypothesisSet",
+     "args": {
+      "hypotheses": [
+       {
+        "evidence_ids": [
+         "E1",
+         "E2",
+         "E3",
+         "E4"
+        ],
+        "category": "code_error",
+        "fix_kind": "code_patch",
+        "recommended_action": "Revert c.touch_cnt back to c.touch_count in models/marts/dim_channels.sql.",
+        "confidence": 0.95,
+        "root_cause": "Commit ab4cfdb renamed c.touch_count to c.touch_cnt in models/marts/dim_channels.sql, creating a mismatch with the CTE alias touch_count defined in by_channel and expected in _marts__models.yml."
+       }
+      ]
+     },
+     "id": "call_2175673"
+    }
+   ],
+   "usage": {
+    "input_tokens": 1085,
+    "output_tokens": 779,
+    "total_tokens": 1864
+   }
+  }
+ ],
+ "tool_records": [
+  {
+   "id": "T1",
+   "tool": "get_run_results",
+   "args": {},
+   "output": "[T1 get_run_results]\n{\"invocation\":\"dbt build --project-dir C:\\\\Users\\\\omarj\\\\Documents\\\\Data_Stuffs\\\\pipelinemedic\\\\sandbox\\\\bad_commit\\\\repo\\\\dbt_marketing --no-use-colors\",\"generated_at\":\"2026-09-10T19:27:58.131665Z\",\"total\":129,\"status_counts\":{\"success\":12,\"pass\":95,\"error\":1,\"skipped\":21},\"failing\":[{\"unique_id\":\"model.marketing_attribution.dim_channels\",\"name\":\"dim_channels\",\"resource_type\":\"model\",\"status\":\"error\",\"message\":\"Runtime Error in model dim_channels (models\\\\marts\\\\dim_channels.sql)\\n  Binder Error: Values list \\\"c\\\" does not have a column named \\\"touch_cnt\\\"\\n  \\n  LINE 86:     c.touch_cnt,\\n               ^\",\"execution_time\":0.13121819496154785}],\"skipped\":[\"test.marketing_attribution.assert_no_answer_key_leakage\",\"test.marketing_attribution.not_null_dim_channels_channel.5c4e4dab78\",\"test.marketing_attribution.not_null_dim_channels_total_spend_usd.84488c8a3e\",\"test.marketing_attribution.not_null_dim_channels_touch_count.3f099daac7\",\"test.marketing_attribution.unique_dim_channels_channel.29ded7c171\",\"test.marketing_attribution.relationships_fct_journey_features_first_channel__channel__ref_dim_channels_.3409dd6008\",\"test.marketing_attribution.relationships_fct_journey_features_last_channel__channel__ref_dim_channels_.53f12d521e\",\"test.marketing_attribution.relationships_fct_touchpoints_channel__channel__ref_dim_channels_.5c2a6188e5\",\"test.marketing_attribution.relationships_int_attribution_weights_channel__channel__ref_dim_channels_.1406494f7c\",\"test.marketing_attribution.relationships_fct_attribution_touchpoints_channel__channel__ref_dim_channels_.3395536506\",\"model.marketing_attribution.fct_attribution_channel\",\"test.marketing_attribution.assert_attribution_grain_is_unique\",\"test.marketing_attribution.not_null_fct_attribution_channel_attributed_conversions.9b702f588d\",\"test.marketing_attribution.not_null_fct_attribution_channel_attribution_model.32eea1cd94\",\"test.marketing_attribution.not_null_fct_attribution_channel_channel.ce542b3101\",\"test.marketing_attribution.not_null_fct_attribution_channel_credit_rank.8cdeb73db1\",\"test.marketing_attribution.not_null_fct_attribution_channel_credit_share_pct.277149bf8a\",\"test.marketing_attribution.relationships_fct_attribution_channel_channel__channel__ref_dim_channels_.6b7df01957\",\"test.marketing_attribution.relationships_fct_journeys_first_channel__channel__ref_dim_channels_.dc4ac0db4a\",\"test.marketing_attribution.relationships_fct_journeys_last_channel__channel__ref_dim_channels_.ec6e179d2c\",\"test.marketing_attribution.assert_attributed_conversions_reconcile\"]}",
+   "error": false,
+   "api_call_id": "call_2560825",
+   "repeat_of": null
+  },
+  {
+   "id": "T2",
+   "tool": "get_lineage",
+   "args": {
+    "node": "dim_channels",
+    "direction": "upstream"
+   },
+   "output": "[T2 get_lineage]\n{\"node\":\"model.marketing_attribution.dim_channels\",\"direction\":\"upstream\",\"depth\":2,\"nodes\":[{\"unique_id\":\"model.marketing_attribution.dim_channels\",\"name\":\"dim_channels\",\"resource_type\":\"model\",\"depth\":0,\"original_file_path\":\"models\\\\marts\\\\dim_channels.sql\"},{\"unique_id\":\"model.marketing_attribution.int_journeys\",\"name\":\"int_journeys\",\"resource_type\":\"model\",\"depth\":1,\"original_file_path\":\"models\\\\intermediate\\\\int_journeys.sql\"},{\"unique_id\":\"model.marketing_attribution.int_touchpoints_sessionized\",\"name\":\"int_touchpoints_sessionized\",\"resource_type\":\"model\",\"depth\":1,\"original_file_path\":\"models\\\\intermediate\\\\int_touchpoints_sessionized.sql\"},{\"unique_id\":\"model.marketing_attribution.stg_conversions\",\"name\":\"stg_conversions\",\"resource_type\":\"model\",\"depth\":2,\"original_file_path\":\"models\\\\staging\\\\stg_conversions.sql\"},{\"unique_id\":\"model.marketing_attribution.stg_touchpoints\",\"name\":\"stg_touchpoints\",\"resource_type\":\"model\",\"depth\":2,\"original_file_path\":\"models\\\\staging\\\\stg_touchpoints.sql\"}],\"edges\":[[\"model.marketing_attribution.int_journeys\",\"model.marketing_attribution.dim_channels\"],[\"model.marketing_attribution.int_touchpoints_sessionized\",\"model.marketing_attribution.dim_channels\"],[\"model.marketing_attribution.int_touchpoints_sessionized\",\"model.marketing_attribution.int_journeys\"],[\"model.marketing_attribution.stg_conversions\",\"model.marketing_attribution.int_journeys\"],[\"model.marketing_attribution.stg_touchpoints\",\"model.marketing_attribution.int_touchpoints_sessionized\"]],\"truncated\":false}",
+   "error": false,
+   "api_call_id": "call_2560826",
+   "repeat_of": null
+  },
+  {
+   "id": "T3",
+   "tool": "read_pipeline_file",
+   "args": {
+    "path": "models/marts/dim_channels.sql"
+   },
+   "output": "[T3 read_pipeline_file]\n# dbt_marketing/models/marts/dim_channels.sql (108 lines)\n-- One row per marketing channel: volume, spend, and funnel position.\n--\n-- THE INTERESTING THING ABOUT THIS MODEL IS WHAT IT DOES NOT DO.\n--\n-- raw.channel_ground_truth already holds a tidy per-channel dimension -\n-- cost_per_touch, first_touch_weight, repeat_weight, conversion_lift. Joining\n-- it here would be one line, and every column would be more accurate than what\n-- is computed below, because it is the parameter the data was generated from\n-- rather than an estimate of it.\n--\n-- That is exactly why it is forbidden. conversion_lift is the answer Phase 4\n-- grades against, and the other columns are its neighbours in the same table -\n-- one join and the whole project becomes a tautology. So every number here is\n-- derived from observed touches only, and cost_per_touch_usd is an *observed\n-- average*, not the planted parameter, even though the two will agree.\n--\n-- The general lesson: leakage is rarely a column named `answer`. It is a\n-- convenient dimension table that happens to sit next to one.\n-- tests/assert_no_answer_key_leakage.sql enforces this mechanically.\n\nwith touches as (\n\n    select * from {{ ref('int_touchpoints_sessionized') }}\n\n),\n\njourneys as (\n\n    select * from {{ ref('int_journeys') }}\n\n),\n\nby_channel as (\n\n    select\n        t.channel,\n\n        count(*)                                        as touch_count,\n        count(distinct t.user_id)                       as users_reached,\n        count(distinct t.campaign)                      as campaign_count,\n\n        sum(t.touch_cost_usd)                           as total_spend_usd,\n        avg(t.touch_cost_usd)                           as cost_per_touch_usd,\n\n        -- Funnel position, observed. Upper-funnel channels open journeys they\n        -- do not close; lower-funnel channels do the reverse. This is the\n        -- structural fact that makes first-touch attribution overcredit\n        -- display by 10x in Phase 1's measurements.\n        count(*) filter (where t.is_first_touch)        as first_touch_count,\n        count(*) filter (where t.is_last_touch)         as last_touch_count,\n\n        count(distinct t.user_id) filter (where j.has_converted)\n            as converting_users_reached,\n\n        sum(j.revenue_usd) filter (where t.is_last_touch)\n            as last_touch_revenue_usd\n\n    from touches t\n    inner join journeys j on t.user_id = j.user_id\n    group by t.channel\n\n),\n\ntotals as (\n\n    select\n        sum(touch_count)     as all_touches,\n        sum(total_spend_usd) as all_spend\n    from by_channel\n\n)\n\nselect\n    c.channel,\n\n    c.touch_cnt,\n    c.users_reached,\n    c.campaign_count,\n    c.converting_users_reached,\n\n    round(c.total_spend_usd, 2)                              as total_spend_usd,\n    round(c.cost_per_touch_usd, 4)                           as cost_per_touch_usd,\n    c.cost_per_touch_usd = 0                                 as is_free_channel,\n\n    c.first_touch_count,\n    c.last_touch_count,\n\n    -- Ratio > 1 means the channel opens more journeys than it closes.\n    round(\n        c.first_touch_count::double / nullif(c.last_touch_count, 0), 3\n    )                                                        as first_to_last_touch_ratio,\n\n    round(100.0 * c.touch_count / t.all_touches, 2)          as share_of_touches_pct,\n    round(100.0 * c.total_spend_usd / nullif(t.all_spend, 0), 2)\n                                                             as share_of_spend_pct,\n\n    -- Share of converting users this channel appeared anywhere in. These do\n    -- NOT sum to 100% - a converting journey touches several channels, and\n    -- deciding how to split it between them is the whole of Phase 3.\n    round(\n        100.0 * c.converting_users_reached\n        / nullif((select count(*) from journeys where has_converted), 0), 2\n    )                                                        as pct_of_converters_touched,\n\n    round(c.last_touch_revenue_usd, 2)                       as last_touch_revenue_usd\n\nfrom by_channel c\ncross join totals t\n",
+   "error": false,
+   "api_call_id": "call_2307381",
+   "repeat_of": null
+  },
+  {
+   "id": "T4",
+   "tool": "get_recent_changes",
+   "args": {
+    "n": 5
+   },
+   "output": "[T4 get_recent_changes]\ncommit ab4cfdb\nauthor kingjaiteh\ndate 2026-09-10\nsubject Tidy the dim_channels column list\n\n\ndiff --git a/dbt_marketing/models/marts/dim_channels.sql b/dbt_marketing/models/marts/dim_channels.sql\nindex 367aa5c..4f43fb8 100644\n--- a/dbt_marketing/models/marts/dim_channels.sql\n+++ b/dbt_marketing/models/marts/dim_channels.sql\n@@ -73,7 +73,7 @@ totals as (\n select\n     c.channel,\n \n-    c.touch_count,\n+    c.touch_cnt,\n     c.users_reached,\n     c.campaign_count,\n     c.converting_users_reached,\ncommit a7ed1b5\nauthor kingjaiteh\ndate 2026-09-08\nsubject Add source freshness and a daily volume test on touchpoints\n\n\ndiff --git a/README.md b/README.md\nindex df0fc7c..eccca8f 100644\n--- a/README.md\n+++ b/README.md\n@@ -189,7 +189,7 @@ attribution/            Python package\n   score.py              the only code permitted to read the answer key\n   models/               markov.py, shapley.py\n   ml/                   predict.py, budget.py\n-dbt_marketing/          dbt project: 14 models, 114 tests, no packages\n+dbt_marketing/          dbt project: 14 models, 115 tests, no packages\n dashboard/              Streamlit app, five pages\n data/marketing.duckdb   schemas: raw, staging, marts, eval\n ```\ndiff --git a/attribution/definitions.py b/attribution/definitions.py\nindex 8b9e103..586cc21 100644\n--- a/attribution/definitions.py\n+++ b/attribution/definitions.py\n@@ -300,7 +300,7 @@ def dbt_marketing_models(context: AssetExecutionContext, dbt: DbtCliResource):\n \n     Dagster picks the tests up as asset *checks* rather than assets, so a\n     failed `unique` test shows on the model it belongs to instead of as an\n-    unrelated red box somewhere in the graph. All 114 of them arrive for free\n+    unrelated red box somewhere in the graph. All 115 of them arrive for free\n     from the manifest - none are re-declared here.\n     \"\"\"\n     yield from dbt.cli([\"build\"], context=context).stream()\ndiff --git a/dashboard/views/overview.py b/dashboard/views/overview.py\nindex ece9d6a..b75cb95 100644\n--- a/dashboard/views/overview.py\n+++ b/dashboard/views/overview.py\n@@ -65,11 +65,11 @@ answer key there is no way to discover that.\n | Layer | Built by |\n |---|---|\n | `raw` | a seeded journey simulator |\n-| `staging` → `marts` | dbt: 14 models, 114 tests |\n+| `staging` → `marts` | dbt: 14 models, 115 tests |\n | Markov + Shapley | Python (not expressible in SQL) |\n | `eval` | scoring against the answer key |\n \n-All of it runs as one Dagster asset graph — 30 assets, 116 checks,\n+All of it runs as one Dagster asset graph — 30 assets, 117 checks,\n one command, about 25 seconds from an empty directory.\n             \"\"\"\n         )\ndiff --git a/dbt_marketing/dbt_project.yml b/dbt_marketing/dbt_project.yml\nindex ed5ef6e..f26ff55 100644\n--- a/dbt_marketing/dbt_project.yml\n+++ b/dbt_marketing/dbt_project.yml\n@@ -39,6 +39,18 @@ vars:\n   #   dbt build --vars 'time_decay_half_life_days: 30'\n   time_decay_half_life_days: 7\n \n+  # The dataset's \"today\". The generator writes fixed dates, so source\n+  # freshness (models/staging/_sources.yml) measures age against this instead\n+  # of the wall clock. Move it forward if the raw layer is regenerated.\n+  data_as_of: '2026-04-14'\n+\n+  # Days from the first touch during which new journeys are still being\n+  # started. generate.py draws journey_starts from uniform(0, window_days * 0.6)\n+  # with window_days = 90, so daily volume is steady for 54 days and then decays\n+  # as journeys finish. tests/assert_daily_touchpoint_volume.sql only judges\n+  # the steady window; a decay is not a drop.\n+  touchpoint_volume_window_days: 54\n+\n models:\n   marketing_attribution:\n     staging:\ndiff --git a/dbt_marketing/models/staging/_sources.yml b/dbt_marketing/models/staging/_sources.yml\nindex 2ddb894..d64e1db 100644\n--- a/dbt_marketing/models/staging/_sources.yml\n+++ b/dbt_marketing/models/staging/_sources.yml\n@@ -12,6 +12,21 @@ sources:\n     tables:\n       - name: touchpoints\n         description: One row per marketing exposure. The observable journey.\n+\n+        # Freshness against the dataset's own clock, not the wall clock. The\n+        # generator writes fixed dates (2026-01-01 to 2026-04-13), so\n+        # comparing max(touched_at) to now() would fail forever on clean data.\n+        # loaded_at_query returns \"now, minus how far max(touched_at) sits\n+        # behind data_as_of\", which makes the age equal to\n+        # data_as_of - max(touched_at): about a day on clean data, and 30 days\n+        # if a load ever lands with backdated timestamps.\n+        loaded_at_query: |\n+          select cast(current_timestamp as timestamp)\n+                 - (cast('{{ var(\"data_as_of\") }}' as timestamp) - max(touched_at))\n+          from {{ this }}\n+        freshness:\n+          warn_after: {count: 2, period: day}\n+          error_after: {count: 7, period: day}\n         columns:\n           - name: user_id\n             description: Synthetic user identifier.\ndiff --git a/dbt_marketing/tests/assert_daily_touchpoint_volume.sql b/dbt_marketing/tests/assert_daily_touchpoint_volume.sql\nnew file mode 100644\nindex 0000000..7014dc1\n--- /dev/null\n+++ b/dbt_marketing/tests/assert_daily_touchpoint_volume.sql\n@@ -0,0 +1,70 @@\n+{#- One parent, so dagster-dbt turns this into an asset check on\n+    stg_touchpoints without a meta hint (see assert_touches_precede_conversion\n+    for the multi-parent case). -#}\n+\n+-- Volume drop detection. A day whose touchpoint count is below half the\n+-- median of the seven days before it is a failure. Half the trailing median is\n+-- deliberately loose: normal day-to-day noise here is well under 20%, so this\n+-- only fires when a chunk of a day is missing, which is what a partial load or\n+-- a truncated export looks like.\n+--\n+-- Scoped to the steady-state window. generate.py starts new journeys for the\n+-- first window_days * 0.6 = 54 days and then only finishes existing ones, so\n+-- volume decays by design from day 55 onwards. Judging that decay would fail\n+-- on clean data, so the window is a var (touchpoint_volume_window_days) and\n+-- the test stops at the end of it. The first seven days are skipped because a\n+-- trailing median needs seven prior days to mean anything.\n+\n+with daily as (\n+\n+    select\n+        cast(touched_at as date) as touch_date,\n+        count(*)                 as touch_count\n+    from {{ ref('stg_touchpoints') }}\n+    group by 1\n+\n+),\n+\n+steady_window as (\n+\n+    select\n+        min(touch_date) + interval {{ var('touchpoint_volume_window_days') }} day\n+            as ends_before\n+    from daily\n+\n+),\n+\n+with_trailing as (\n+\n+    select\n+        touch_date,\n+        touch_count,\n+\n+        median(touch_count) over (\n+            order by touch_date\n+            rows between 7 preceding and 1 preceding\n+        ) as trailing_median,\n+\n+        count(*) over (\n+            order by touch_date\n+            rows between 7 preceding and 1 preceding\n+        ) as trailing_days\n+\n+    from daily\n+\n+)\n+\n+select\n+    t.touch_date,\n+    t.touch_count,\n+    t.trailing_median,\n+    round(100.0 * t.touch_count / t.trailing_median, 1) as pct_of_trailing_median\n+\n+from with_trailing t\n+cross join steady_window w\n+\n+where t.touch_date < w.ends_before\n+  and t.trailing_days = 7\n+  and t.touch_count < 0.5 * t.trailing_median\n+\n+order by t.touch_date\ncommit 485cefb\nauthor kingjaiteh\ndate 2026-07-28\nsubject Rewrite README for a recruiter-facing audience\n\n\ndiff --git a/README.md b/README.md\nindex 7761ae4..df0fc7c 100644\n--- a/README.md\n+++ b/README.md\n@@ -1,24 +1,46 @@\n # Marketing Attribution Platform\n \n-A multi-touch marketing attribution platform on DuckDB, dbt, Dagster and\n-Streamlit. Seven attribution models are implemented, scored against a known\n-ground truth, and turned into budget decisions.\n-\n-One command builds everything from an empty directory in about 25 seconds.\n+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)\n+![dbt](https://img.shields.io/badge/dbt-Core-FF694B?logo=dbt&logoColor=white)\n+![Dagster](https://im\n...[truncated at 8000 chars]",
+   "error": false,
+   "api_call_id": "call_2307382",
+   "repeat_of": null
+  },
+  {
+   "id": "T5",
+   "tool": "list_pipeline_files",
+   "args": {
+    "subdir": "models/marts"
+   },
+   "output": "[T5 list_pipeline_files]\n{\"error\": \"no directory 'models/marts'\"}",
+   "error": false,
+   "api_call_id": "call_2502707",
+   "repeat_of": null
+  },
+  {
+   "id": "T6",
+   "tool": "list_pipeline_files",
+   "args": {
+    "subdir": "dbt_marketing/models/marts"
+   },
+   "output": "[T6 list_pipeline_files]\n[\"dbt_marketing/models/marts/_marts__models.yml\", \"dbt_marketing/models/marts/dim_channels.sql\", \"dbt_marketing/models/marts/fct_attribution_channel.sql\", \"dbt_marketing/models/marts/fct_attribution_touchpoints.sql\", \"dbt_marketing/models/marts/fct_journey_features.sql\", \"dbt_marketing/models/marts/fct_journeys.sql\", \"dbt_marketing/models/marts/fct_sessions.sql\", \"dbt_marketing/models/marts/fct_touchpoints.sql\"]",
+   "error": false,
+   "api_call_id": "call_1391600",
+   "repeat_of": null
+  },
+  {
+   "id": "T7",
+   "tool": "read_pipeline_file",
+   "args": {
+    "path": "dbt_marketing/models/marts/_marts__models.yml"
+   },
+   "output": "[T7 read_pipeline_file]\n# dbt_marketing/models/marts/_marts__models.yml (222 lines)\nversion: 2\n\nmodels:\n  - name: fct_touchpoints\n    description: >\n      Touch grain with journey outcome denormalised on. Every Phase 3\n      attribution model is a weighting of these rows. Contains positions, not\n      credit - credit is an opinion and belongs to the model that holds it.\n    columns:\n      - name: touchpoint_id\n        data_tests: [unique, not_null]\n      - name: user_id\n        data_tests:\n          - not_null\n          - relationships:\n              arguments:\n                to: ref('fct_journeys')\n                field: user_id\n      - name: session_id\n        data_tests:\n          - not_null\n          - relationships:\n              arguments:\n                to: ref('fct_sessions')\n                field: session_id\n      - name: channel\n        data_tests:\n          - not_null\n          - relationships:\n              arguments:\n                to: ref('dim_channels')\n                field: channel\n      - name: touch_seq\n        data_tests: [not_null]\n      - name: is_first_touch\n        data_tests: [not_null]\n      - name: is_last_touch\n        data_tests: [not_null]\n      - name: has_converted\n        data_tests: [not_null]\n      - name: days_before_last_touch\n        description: >\n          Observable recency. The generator decays causal power with this\n          quantity, so it is the honest feature standing in for the hidden one.\n\n  - name: fct_journeys\n    description: One row per user - path, shape and outcome. Phase 3 reads this.\n    columns:\n      - name: user_id\n        data_tests: [unique, not_null]\n      - name: first_channel\n        data_tests:\n          - not_null\n          - relationships:\n              arguments:\n                to: ref('dim_channels')\n                field: channel\n      - name: last_channel\n        data_tests:\n          - not_null\n          - relationships:\n              arguments:\n                to: ref('dim_channels')\n                field: channel\n      - name: channel_path\n        description: Ordered list of channels. Markov chains consume this directly.\n        data_tests: [not_null]\n      - name: has_converted\n        data_tests: [not_null]\n      - name: journey_length_bucket\n        data_tests:\n          - not_null\n          - accepted_values:\n              arguments:\n                values: [\"1 touch\", \"2 touches\", \"3-4 touches\", \"5-7 touches\", \"8+ touches\"]\n\n  - name: fct_sessions\n    description: >\n      Session grain. Diagnostic layer - answers whether same-day multi-channel\n      activity converts better, which neither the touch nor journey grain can.\n    columns:\n      - name: session_id\n        data_tests: [unique, not_null]\n      - name: user_id\n        data_tests:\n          - not_null\n          - relationships:\n              arguments:\n                to: ref('fct_journeys')\n                field: user_id\n      - name: touches_in_session\n        data_tests: [not_null]\n      - name: journey_has_converted\n        description: >\n          The JOURNEY's outcome, not the session's. A conversion cannot be\n          assigned to one session without making the attribution assumption\n          this project exists to test.\n\n  - name: dim_channels\n    description: >\n      Channel dimension built from observed touches only. Deliberately does not\n      join raw.channel_ground_truth even though that table holds the same\n      columns more accurately - see the header comment in the model.\n    columns:\n      - name: channel\n        data_tests: [unique, not_null]\n      - name: touch_count\n        data_tests: [not_null]\n      - name: total_spend_usd\n        data_tests: [not_null]\n      - name: first_to_last_touch_ratio\n        description: >\n          Above 1 = opens more journeys than it closes (upper funnel).\n          Below 1 = closes more than it opens (lower funnel).\n\n  - name: fct_attribution_touchpoints\n    description: >\n      Touch grain x attribution model - the finest grain at which credit\n      exists. Phase 2's fct_touchpoints refused to carry credit columns\n      because credit is an opinion; here the opinion is labelled with whose\n      it is.\n    columns:\n      - name: touchpoint_id\n        description: Not unique - one row per touchpoint per model.\n        data_tests: [not_null]\n      - name: attribution_model\n        data_tests:\n          - not_null\n          - accepted_values:\n              arguments:\n                values: [\"first_touch\", \"last_touch\", \"linear\", \"time_decay\", \"position_based\"]\n      - name: channel\n        data_tests:\n          - not_null\n          - relationships:\n              arguments:\n                to: ref('dim_channels')\n                field: channel\n      - name: credit\n        data_tests: [not_null]\n      - name: attributed_revenue_usd\n        data_tests: [not_null]\n      - name: is_single_touch_journey\n        description: >\n          The control group. Every model must assign credit 1.0 on these rows;\n          assert_models_agree_on_single_touch.sql fails if any disagrees.\n        data_tests: [not_null]\n\n  - name: fct_attribution_channel\n    description: >\n      Channel x attribution model - the scorecard Phase 4 grades. Credit comes\n      only from converting journeys; total_spend_usd covers every touch,\n      converting or not, because that is what was actually paid.\n    columns:\n      - name: attribution_model\n        data_tests: [not_null]\n      - name: channel\n        data_tests:\n          - not_null\n          - relationships:\n              arguments:\n                to: ref('dim_channels')\n                field: channel\n      - name: attributed_conversions\n        data_tests: [not_null]\n      - name: credit_share_pct\n        description: Sums to 100 within each model. Comparable across models.\n        data_tests: [not_null]\n      - name: credit_rank\n        description: >\n          1 = most credited channel under this model. Ordering matters as much\n          as magnitude - a model that ranks channels correctly is a usable\n          budget tool even when its shares are off.\n        data_tests: [not_null]\n      - name: cost_per_acquisition_usd\n        description: >\n          Null for free channels rather than infinite. Division by zero is not\n          a fact about organic_search.\n      - name: attributed_roas\n        description: Null for free channels, for the same reason.\n\n  - name: fct_journey_features\n    description: >\n      ML feature table, user grain. Strictly observable features only - the\n      four post-outcome columns of fct_journeys (converted_at,\n      days_to_convert, revenue_usd, journey_margin_usd) are excluded and\n      assert_no_post_outcome_features.sql fails the build if any reappears.\n      Retrospective framing: every feature is known only at journey end, so\n      this is not deployable as a live scorer.\n    columns:\n      - name: user_id\n        data_tests: [unique, not_null]\n      - name: has_converted\n        description: The target. 9.39% positive - check PR AUC, not just ROC AUC.\n        data_tests: [not_null]\n      - name: journey_touch_count\n        description: >\n          Strongest predictor and the most treacherous. CVR climbs 2.01% ->\n          22.70% with journey length purely because each touch gets an\n          independent chance to fire. Predictive, real, and not a lever.\n        data_tests: [not_null]\n      - name: first_channel\n        data_tests:\n          - not_null\n          - relationships:\n              arguments:\n                to: ref('dim_channels')\n                field: channel\n      - name: last_channel\n        data_tests:\n          - not_null\n          - relationships:\n              arguments:\n                to: ref('dim_channels')\n                field: channel\n      - name: journey_cost_usd\n        description: Observable - we know what we spent regardless of outcome.\n        data_tests: [not_null]\n      - name: touches_display\n        data_tests: [not_null]\n      - name: touches_email\n        data_tests: [not_null]\n",
+   "error": false,
+   "api_call_id": "call_2435087",
+   "repeat_of": null
+  },
+  {
+   "id": "T8",
+   "tool": "query_duckdb",
+   "args": {
+    "sql": "select column_name, data_type from information_schema.columns where table_name = 'stg_touchpoints'"
+   },
+   "output": "[T8 query_duckdb]\n{\"columns\": [\"column_name\", \"data_type\"], \"rows\": [[\"touchpoint_id\", \"VARCHAR\"], [\"user_id\", \"BIGINT\"], [\"touch_index\", \"INTEGER\"], [\"touched_at\", \"TIMESTAMP\"], [\"channel\", \"VARCHAR\"], [\"campaign\", \"VARCHAR\"], [\"touch_cost_usd\", \"DOUBLE\"]], \"row_count\": 7, \"elapsed_s\": 0.018}",
+   "error": false,
+   "api_call_id": "call_2224074",
+   "repeat_of": null
+  }
+ ],
+ "hypotheses": [
+  {
+   "rank": 1,
+   "root_cause": "Commit ab4cfdb renamed c.touch_count to c.touch_cnt in models/marts/dim_channels.sql, creating a mismatch with the CTE alias touch_count defined in by_channel and expected in _marts__models.yml.",
+   "category": "code_error",
+   "evidence_ids": [
+    "E1",
+    "E2",
+    "E3",
+    "E4"
+   ],
+   "confidence": 0.95,
+   "fix_kind": "code_patch",
+   "recommended_action": "Revert c.touch_cnt back to c.touch_count in models/marts/dim_channels.sql."
+  }
+ ],
+ "hallucinations": [],
+ "budget": {
+  "tool_calls": 8,
+  "repeated_calls": 0,
+  "llm_calls": 9,
+  "tokens": 55279,
+  "max_tool_calls": 25,
+  "max_llm_calls": 20,
+  "max_tokens": 200000
+ },
+ "status": "done"
+}

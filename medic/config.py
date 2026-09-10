@@ -56,7 +56,12 @@ class PipelineTarget:
 @dataclass(frozen=True)
 class LLMSettings:
     provider: str = field(default_factory=lambda: os.environ.get("MEDIC_LLM_PROVIDER", "gemini"))
-    model: str = field(default_factory=lambda: os.environ.get("MEDIC_MODEL", "gemini-2.5-flash"))
+    model: str = field(default_factory=lambda: os.environ.get("MEDIC_MODEL", "gemini-3.8-flash"))
+    # Seconds between model calls. The free Gemini tier allows 10 requests a
+    # minute; spacing calls costs less than the retries a burst provokes.
+    min_interval_s: float = field(
+        default_factory=lambda: float(os.environ.get("MEDIC_LLM_MIN_INTERVAL_S", "6.5"))
+    )
 
 
 @dataclass(frozen=True)
