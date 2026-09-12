@@ -42,9 +42,11 @@ def test_registry_has_seven_scenarios_with_callable_mutations():
 
 
 def test_fix_kinds_match_the_plan():
+    # Scenario 4 moved from code_patch to upstream_data_issue on 2026-09-12:
+    # the not_null test on the cast column fails on the bad rows either way.
     kinds = {n: s.fix_kind for n, s in load_scenarios().items()}
-    assert [n for n, k in kinds.items() if k == "code_patch"] == [1, 4, 5]
-    assert [n for n, k in kinds.items() if k == "upstream_data_issue"] == [2, 3, 6, 7]
+    assert [n for n, k in kinds.items() if k == "code_patch"] == [1, 5]
+    assert [n for n, k in kinds.items() if k == "upstream_data_issue"] == [2, 3, 4, 6, 7]
 
 
 def test_get_scenario_unknown():

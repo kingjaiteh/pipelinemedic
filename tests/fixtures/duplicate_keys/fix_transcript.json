@@ -1,0 +1,232 @@
+{
+ "scenario_key": "duplicate_keys",
+ "model": "gemini-3.6-flash",
+ "incident": {
+  "source": "chaos",
+  "run_id": "chaos-duplicate_keys",
+  "scenario": 3,
+  "scenario_key": "duplicate_keys",
+  "dbt_args": [
+   "build"
+  ],
+  "artifact": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\duplicate_keys\\repo\\dbt_marketing\\target\\run_results.json",
+  "manifest": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\duplicate_keys\\repo\\dbt_marketing\\target\\manifest.json",
+  "sandbox_dir": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\duplicate_keys",
+  "duckdb": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\duplicate_keys\\marketing.duckdb",
+  "repo": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\duplicate_keys\\repo",
+  "failing_nodes": [
+   {
+    "unique_id": "test.marketing_attribution.unique_stg_touchpoints_touchpoint_id.93be3c4f82",
+    "name": "unique_stg_touchpoints_touchpoint_id",
+    "resource_type": "test",
+    "status": "fail",
+    "message": "Got 3286 results, configured to fail if != 0"
+   }
+  ],
+  "status_counts": {
+   "success": 3,
+   "pass": 19,
+   "fail": 1,
+   "skipped": 106
+  }
+ },
+ "llm_turns": [
+  {
+   "node": "fixer_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "list_pipeline_files",
+     "args": {},
+     "id": "call_2054631"
+    }
+   ],
+   "usage": {
+    "input_tokens": 2210,
+    "output_tokens": 103,
+    "total_tokens": 2313
+   }
+  },
+  {
+   "node": "fixer_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "read_pipeline_file",
+     "args": {
+      "path": "dbt_marketing/models/staging/_staging__models.yml"
+     },
+     "id": "call_1960999"
+    }
+   ],
+   "usage": {
+    "input_tokens": 2903,
+    "output_tokens": 58,
+    "total_tokens": 2961
+   }
+  },
+  {
+   "node": "fixer_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "ProposeFix",
+     "args": {
+      "recommended_action": "Notify the upstream data provider that raw.touchpoints contains duplicate rows with identical user_id and touch_number values, and request a fix or clean reload.",
+      "kind": "upstream_data_issue",
+      "explanation": "The test failure on unique_stg_touchpoints_touchpoint_id is caused by duplicate records in the upstream table raw.touchpoints sharing identical user_id and touch_number values. The staging test correctly flagged this data quality anomaly in the raw source data.",
+      "edits": []
+     },
+     "id": "call_1805710"
+    }
+   ],
+   "usage": {
+    "input_tokens": 3635,
+    "output_tokens": 943,
+    "total_tokens": 4578
+   }
+  }
+ ],
+ "tool_records": [
+  {
+   "id": "T0",
+   "tool": "incident",
+   "args": {},
+   "output": "[T0 incident]\nA dbt command failed. Here is the summary:\n{\n \"dbt_command\": \"dbt build\",\n \"status_counts\": {\n  \"success\": 3,\n  \"pass\": 19,\n  \"fail\": 1,\n  \"skipped\": 106\n },\n \"failing_nodes\": [\n  {\n   \"unique_id\": \"test.marketing_attribution.unique_stg_touchpoints_touchpoint_id.93be3c4f82\",\n   \"name\": \"unique_stg_touchpoints_touchpoint_id\",\n   \"resource_type\": \"test\",\n   \"status\": \"fail\",\n   \"message\": \"Got 3286 results, configured to fail if != 0\"\n  }\n ]\n}",
+   "error": false,
+   "api_call_id": null,
+   "repeat_of": null,
+   "origin": "model"
+  },
+  {
+   "id": "T9",
+   "tool": "read_pipeline_file",
+   "args": {
+    "path": "dbt_marketing/models/staging/stg_touchpoints.sql"
+   },
+   "output": "[T9 read_pipeline_file]\n# dbt_marketing/models/staging/stg_touchpoints.sql (42 lines)\n-- One row per marketing touch, cleaned and typed. No business logic.\n--\n-- Staging's job is to make the source safe to build on: stable column names,\n-- explicit types, trimmed strings. Anything that involves a decision about\n-- meaning (what counts as a session, which touch gets credit) belongs\n-- downstream. Keeping that line sharp is what makes it possible to say\n-- \"the source is fine, the logic is wrong\" when a number looks off.\n\nwith source as (\n\n    select * from {{ source('raw', 'touchpoints') }}\n\n),\n\nrenamed as (\n\n    select\n        -- Composite key. The generator has no touch-level id, so we build one\n        -- from the natural key; the tests below assert it is actually unique.\n        cast(user_id as varchar) || '-' || cast(touch_number as varchar)\n            as touchpoint_id,\n\n        cast(user_id as bigint)          as user_id,\n\n        -- Left 0-based here on purpose: renaming is staging's job, re-indexing\n        -- is not. int_touchpoints_sessionized derives a 1-based touch_seq.\n        cast(touch_number as integer)    as touch_index,\n\n        -- raw arrives as TIMESTAMP_NS from pandas. Nothing here needs\n        -- nanoseconds, and the wider type propagates awkwardly into joins.\n        cast(touched_at as timestamp)    as touched_at,\n\n        lower(trim(channel))             as channel,\n        lower(trim(campaign))            as campaign,\n\n        cast(cost as double)             as touch_cost_usd\n\n    from source\n\n)\n\nselect * from renamed\n",
+   "error": false,
+   "api_call_id": null,
+   "repeat_of": null,
+   "origin": "fixer_preread"
+  },
+  {
+   "id": "T10",
+   "tool": "list_pipeline_files",
+   "args": {},
+   "output": "[T10 list_pipeline_files]\n[\"dbt_marketing/dbt_project.yml\", \"dbt_marketing/macros/generate_schema_name.sql\", \"dbt_marketing/models/intermediate/_intermediate__models.yml\", \"dbt_marketing/models/intermediate/int_attribution_weights.sql\", \"dbt_marketing/models/intermediate/int_journeys.sql\", \"dbt_marketing/models/intermediate/int_sessions.sql\", \"dbt_marketing/models/intermediate/int_touchpoints_sessionized.sql\", \"dbt_marketing/models/marts/_marts__models.yml\", \"dbt_marketing/models/marts/dim_channels.sql\", \"dbt_marketing/models/marts/fct_attribution_channel.sql\", \"dbt_marketing/models/marts/fct_attribution_touchpoints.sql\", \"dbt_marketing/models/marts/fct_journey_features.sql\", \"dbt_marketing/models/marts/fct_journeys.sql\", \"dbt_marketing/models/marts/fct_sessions.sql\", \"dbt_marketing/models/marts/fct_touchpoints.sql\", \"dbt_marketing/models/staging/_sources.yml\", \"dbt_marketing/models/staging/_staging__models.yml\", \"dbt_marketing/models/staging/stg_conversions.sql\", \"dbt_marketing/models/staging/stg_kaggle_ads.sql\", \"dbt_marketing/models/staging/stg_touchpoints.sql\", \"dbt_marketing/profiles.yml\", \"dbt_marketing/tests/assert_attributed_conversions_reconcile.sql\", \"dbt_marketing/tests/assert_attribution_grain_is_unique.sql\", \"dbt_marketing/tests/assert_credit_sums_to_one.sql\", \"dbt_marketing/tests/assert_daily_touchpoint_volume.sql\", \"dbt_marketing/tests/assert_journey_length_reconciles.sql\", \"dbt_marketing/tests/assert_models_agree_on_single_touch.sql\", \"dbt_marketing/tests/assert_no_answer_key_leakage.sql\", \"dbt_marketing/tests/assert_no_post_outcome_features.sql\", \"dbt_marketing/tests/assert_sessions_partition_touchpoints.sql\", \"dbt_marketing/tests/assert_touches_precede_conversion.sql\"]",
+   "error": false,
+   "api_call_id": "call_2054631",
+   "repeat_of": null,
+   "origin": "model"
+  },
+  {
+   "id": "T11",
+   "tool": "read_pipeline_file",
+   "args": {
+    "path": "dbt_marketing/models/staging/_staging__models.yml"
+   },
+   "output": "[T11 read_pipeline_file]\n# dbt_marketing/models/staging/_staging__models.yml (69 lines)\nversion: 2\n\nmodels:\n  - name: stg_touchpoints\n    description: One row per marketing touch. Typed and renamed, no logic.\n    columns:\n      - name: touchpoint_id\n        description: \"{user_id}-{touch_index}. Synthetic, unique per touch.\"\n        data_tests: [unique, not_null]\n      - name: user_id\n        data_tests: [not_null]\n      - name: touch_index\n        description: 0-based position within the user's journey, as generated.\n        data_tests: [not_null]\n      - name: touched_at\n        data_tests: [not_null]\n      - name: channel\n        data_tests:\n          - not_null\n          - accepted_values:\n              # Locked to channels.py. A new channel must be added there\n              # first, which is the point - the test fails loudly rather than\n              # letting an unknown channel leak through into attribution.\n              #\n              # `arguments:` is required from dbt 1.11; passing `values:` at the\n              # top level still works but emits a deprecation warning.\n              arguments:\n                values:\n                  - display\n                  - paid_social\n                  - paid_search\n                  - organic_search\n                  - email\n                  - direct\n      - name: campaign\n        data_tests: [not_null]\n      - name: touch_cost_usd\n        description: USD paid for this touch. Zero for organic and direct.\n        data_tests: [not_null]\n\n  - name: stg_conversions\n    description: One row per user, converters and non-converters.\n    columns:\n      - name: user_id\n        data_tests: [unique, not_null]\n      - name: has_converted\n        data_tests: [not_null]\n      - name: reported_touch_count\n        description: Generator's touch count; reconciled against a recount downstream.\n        data_tests: [not_null]\n      - name: converted_at\n        description: Null for non-converters - the only intentional null here.\n      - name: revenue_usd\n        data_tests: [not_null]\n\n  - name: stg_kaggle_ads\n    description: Real ad-level aggregates. Calibration benchmark only.\n    columns:\n      - name: ad_id\n        data_tests: [unique, not_null]\n      - name: gender\n        data_tests:\n          - accepted_values:\n              arguments:\n                values: [\"M\", \"F\"]\n      - name: spend_usd\n        data_tests: [not_null]\n      - name: clicks\n        data_tests: [not_null]\n",
+   "error": false,
+   "api_call_id": "call_1960999",
+   "repeat_of": null,
+   "origin": "model"
+  }
+ ],
+ "hypotheses": [
+  {
+   "rank": 1,
+   "root_cause": "The upstream raw.touchpoints table contains duplicate rows with identical user_id and touch_number combinations, causing stg_touchpoints.touchpoint_id to have non-unique values.",
+   "category": "data_quality",
+   "evidence_ids": [
+    "E1",
+    "E2"
+   ],
+   "confidence": 1.0,
+   "fix_kind": "upstream_data_issue",
+   "recommended_action": "Notify the upstream data provider that raw.touchpoints contains duplicate rows for the same user_id and touch_number."
+  }
+ ],
+ "hallucinations": [
+  {
+   "kind": "evidence",
+   "ref": "E3",
+   "claim": "The unique test failure states that 3286 results were found, corresponding to the duplicate touchpoint_ids generated from duplicate raw touchpoints.",
+   "reason": "excerpt is not a substring of the get_run_results output for T1"
+  },
+  {
+   "kind": "hypothesis",
+   "ref": "rank 1",
+   "claim": "The upstream raw.touchpoints table contains duplicate rows with identical user_id and touch_number combinations, causing stg_touchpoints.touchpoint_id to have non-unique values.",
+   "reason": "dropped citations that did not survive: E3"
+  }
+ ],
+ "budget": {
+  "tool_calls": 11,
+  "repeated_calls": 0,
+  "llm_calls": 8,
+  "tokens": 28051,
+  "fix_iterations": 1,
+  "fixer_turns": 0,
+  "max_tool_calls": 12,
+  "max_llm_calls": 20,
+  "max_tokens": 200000,
+  "max_fix_iterations": 3,
+  "max_fixer_turns": 3
+ },
+ "status": "done",
+ "triage": {
+  "category": "data_quality",
+  "confidence": 1.0,
+  "rationale": "Got 3286 results, configured to fail if != 0"
+ },
+ "evidence": [
+  {
+   "id": "E1",
+   "claim": "The unique test on stg_touchpoints.touchpoint_id fails because touchpoint_id is built from user_id and touch_number, but the raw touchpoints table contains duplicate rows with the same user_id and touch_number.",
+   "tool": "read_pipeline_file",
+   "tool_call_id": "T3",
+   "excerpt": "cast(user_id as varchar) || '-' || cast(touch_number as varchar)\n            as touchpoint_id,"
+  },
+  {
+   "id": "E2",
+   "claim": "There are duplicate rows in raw.touchpoints sharing the same user_id and touch_number values.",
+   "tool": "query_duckdb",
+   "tool_call_id": "T5",
+   "excerpt": "{\"columns\": [\"user_id\", \"touch_number\", \"cnt\"], \"rows\": [[45572, 2, 2], [46109, 2, 2], [46251, 0, 2], [46659, 2, 2], [46896, 1, 2], [47051, 1, 2], [47091, 1, 2], [47224, 0, 2], [47319, 2, 2], [47326, 0, 2], [47379, 3, 2], [48562, 6, 2], [116, 1, 2], [312, 4, 2], [488, 6, 2], [810, 4, 2], [848, 2, 2], [960, 6, 2], [1290, 0, 2], [1385, 0, 2]], \"row_count\": 20, \"elapsed_s\": 0.016}"
+  }
+ ],
+ "seed_budget": {
+  "tool_calls": 8,
+  "repeated_calls": 0,
+  "llm_calls": 5,
+  "tokens": 18199,
+  "fix_iterations": 0,
+  "fixer_turns": 0,
+  "max_tool_calls": 12,
+  "max_llm_calls": 20,
+  "max_tokens": 200000,
+  "max_fix_iterations": 3,
+  "max_fixer_turns": 3
+ },
+ "fix_attempts": [
+  {
+   "iteration": 1,
+   "proposal": {
+    "kind": "upstream_data_issue",
+    "explanation": "The test failure on unique_stg_touchpoints_touchpoint_id is caused by duplicate records in the upstream table raw.touchpoints sharing identical user_id and touch_number values. The staging test correctly flagged this data quality anomaly in the raw source data.",
+    "edits": [],
+    "recommended_action": "Notify the upstream data provider that raw.touchpoints contains duplicate rows with identical user_id and touch_number values, and request a fix or clean reload."
+   },
+   "apply": null,
+   "validation": null
+  }
+ ],
+ "approval": {
+  "status": "approved",
+  "note": "correct: duplicates are a source problem",
+  "decided_at": "2026-09-12T22:47:46+00:00"
+ },
+ "pull_request": null,
+ "escalation_reason": null
+}

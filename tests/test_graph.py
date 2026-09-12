@@ -166,7 +166,7 @@ def test_happy_path_records_evidence_and_survives_critic(incident, fake_tools):
     )
     final = run(model, tools, incident)
 
-    assert final["status"] == "done"
+    assert final["status"] == "investigated"
     assert final["triage"].category == "code_error"
     assert [c[0] for c in calls] == ["get_run_results", "read_pipeline_file", "query_duckdb"]
     assert [r.id for r in final["tool_records"]] == ["T0", "T1", "T2", "T3"]
@@ -221,7 +221,7 @@ def test_repeated_calls_are_not_rerun_and_force_submission(incident, fake_tools)
         ]
     )
     final = run(model, tools, incident)
-    assert final["status"] == "done"
+    assert final["status"] == "investigated"
     assert len(calls) == 1  # the tool itself ran once
     assert final["budget"].tool_calls == 3 and final["budget"].repeated_calls == MAX_REPEATED_CALLS
     assert "REPEATED CALL: identical to T1" in final["tool_records"][3].output
@@ -261,7 +261,7 @@ def test_model_that_stops_talking_is_told_to_submit(incident, fake_tools):
         ]
     )
     final = run(model, tools, incident)
-    assert final["status"] == "done" and len(final["hypotheses"]) == 1
+    assert final["status"] == "investigated" and len(final["hypotheses"]) == 1
     assert model.tool_choices[3] == "SubmitEvidence"
 
 
@@ -297,7 +297,7 @@ def test_unknown_tool_is_reported_and_charged(incident, fake_tools):
     final = run(model, tools, incident)
     assert "unknown tool 'get_dagster_run'" in final["tool_records"][1].output
     assert final["budget"].tool_calls == 1
-    assert final["status"] == "done" and final["hypotheses"] == []
+    assert final["status"] == "investigated" and final["hypotheses"] == []
     assert final["hallucinations"][0].reason == "cites no evidence"
     tool_msgs = [m for m in final["messages"] if isinstance(m, ToolMessage)]
     assert tool_msgs[0].tool_call_id == "c1"

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from medic.graph.state import Evidence, Incident, Triage
+from medic.graph.state import Evidence, FixAttempt, Hypothesis, Incident, ToolRecord, Triage
 
 TRIAGE_SYSTEM = """You are the triage step of PipelineMedic, an on-call assistant for a dbt pipeline.
 
@@ -54,6 +54,23 @@ fix_kind guidance:
 Give 1 to 3 hypotheses, most likely first. Do not pad. Submit HypothesisSet once."""
 
 
+FIXER_SYSTEM = """You are the fixer step of PipelineMedic. An investigation has ranked root-cause hypotheses for a failed dbt run, each citing evidence quoted from tool results. Decide whether pipeline code should change and, if so, make the change in the sandbox checkout.
+
+Pick one kind:
+- code_patch: a change to model SQL or schema yml makes the failure go away without hiding a data problem. Examples: alias a renamed source column in the staging model, revert a typo, fix a column reference.
+- test_change: the test itself is wrong. Rare; say why.
+- upstream_data_issue: the data is wrong and the pipeline correctly caught it (nulls, duplicates, stale loads, missing rows, values that mean something upstream broke). No edits. recommended_action names what the data owner must check.
+- needs_human: the evidence does not settle it. No edits.
+
+Never hide a problem to make a build pass: do not remove, disable or weaken a test (severity, where, enabled), do not filter rows out of a model, and do not replace bad values with defaults so a test stops firing. A guard refuses edits to test definitions and rejects removed tests, and a human reads every diff before it goes anywhere. A defensive cast is acceptable only if a test still reports the bad rows.
+
+Never touch profiles.yml, dbt_project.yml, macros/, or anything outside dbt_marketing/. Never query or reference raw.true_effects or raw.channel_ground_truth.
+
+Edits are exact text replacements. `find` must match the current file text once, character for character, including indentation. The current text of the files most likely involved is given below, tagged like tool results; read any other file with read_pipeline_file before editing it. Keep edits minimal: change what is wrong, keep the file's style, and do not rewrite whole files.
+
+After you submit, the edits are applied and dbt builds the affected models and their tests in the sandbox. If that fails you get the output and may try again; edits accumulate, so a second attempt edits the already-patched text. You have {iterations_left} attempt(s) left. You may call read_pipeline_file or list_pipeline_files up to {turns_left} time(s) before submitting. Submit with ProposeFix exactly once per attempt."""
+
+
 def incident_message(incident: Incident, tagged: bool = False) -> str:
     body = "A dbt command failed. Here is the summary:\n" + json.dumps(incident.summary(), indent=1)
     return f"[T0 incident]\n{body}" if tagged else body
@@ -80,4 +97,72 @@ def hypothesis_message(incident: Incident, triage: Triage | None, evidence: list
         lines.append(f"- {e.id} [{e.tool}] {e.claim}\n  excerpt: {e.excerpt}")
     if not evidence:
         lines.append("- none survived; say so with needs_human")
+    return "\n".join(lines)
+
+
+def fixer_system(iterations_left: int, turns_left: int) -> str:
+    return FIXER_SYSTEM.format(iterations_left=iterations_left, turns_left=turns_left)
+
+
+def fixer_message(
+    incident: Incident,
+    triage: Triage | None,
+    hypotheses: list[Hypothesis],
+    evidence: list[Evidence],
+    file_records: list[ToolRecord],
+) -> str:
+    """The fixer's opening message: incident, ranked hypotheses with their
+    evidence, and the current text of the files most likely involved."""
+    by_id = {e.id: e for e in evidence}
+    lines = [incident_message(incident)]
+    if triage:
+        lines.append(f"\nTriage: {triage.category} ({triage.confidence:.2f}). {triage.rationale}")
+    lines.append("\nRanked hypotheses from the investigation:")
+    for h in hypotheses:
+        lines.append(f"#{h.rank} [{h.category}, {h.fix_kind}, {h.confidence:.2f}] {h.root_cause}")
+        lines.append(f"   recommended action: {h.recommended_action}")
+        for eid in h.evidence_ids:
+            e = by_id.get(eid)
+            if e:
+                lines.append(f"   {e.id} [{e.tool}] {e.claim}")
+                lines.append(f'      excerpt: "{e.excerpt}"')
+    if not hypotheses:
+        lines.append("- none survived the critic")
+    if file_records:
+        lines.append("\nCurrent text of the files most likely involved:")
+        for r in file_records:
+            lines.append("")
+            lines.append(r.output)
+    lines.append("\nDecide the fix kind and submit ProposeFix.")
+    return "\n".join(lines)
+
+
+def fix_feedback_message(attempt: FixAttempt, current_files: list[ToolRecord]) -> str:
+    """What the fixer is told after an attempt that did not pass."""
+    lines = [f"Attempt {attempt.iteration} did not pass."]
+    if attempt.apply is not None and not attempt.apply.ok:
+        lines.append("The edits could not be applied:")
+        for o in attempt.apply.outcomes:
+            lines.append(f"- {o.path}: {'ok' if o.ok else o.error}")
+        lines.append("Nothing was changed. Fix the `find` text so it matches exactly once.")
+    elif attempt.validation is not None:
+        v = attempt.validation
+        lines.append(f"The edits were applied; {v.summary()}")
+        for n in v.failing[:5]:
+            lines.append(f"- {n.status} {n.name}: {n.message or ''}")
+        if v.stdout_tail:
+            lines.append("dbt output tail:")
+            lines.append(v.stdout_tail)
+    if attempt.apply is not None and attempt.apply.diff:
+        lines.append("\nDiff currently applied in the sandbox:")
+        lines.append(attempt.apply.diff)
+    if current_files:
+        lines.append("\nCurrent text of the edited files:")
+        for r in current_files:
+            lines.append("")
+            lines.append(r.output)
+    lines.append(
+        "\nEither propose a further edit, or, if the build cannot pass without hiding bad data, "
+        "submit upstream_data_issue or needs_human with no edits and a recommended action."
+    )
     return "\n".join(lines)

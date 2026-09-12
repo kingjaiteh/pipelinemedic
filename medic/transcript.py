@@ -21,13 +21,21 @@ from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
 from medic.graph.state import (
+    ApplyResult,
+    Approval,
     Budget,
+    EditSpec,
+    Evidence,
+    FixAttempt,
     Hallucination,
     Hypothesis,
     Incident,
     LLMTurn,
     MedicState,
+    PullRequest,
     ToolRecord,
+    Triage,
+    Validation,
 )
 from medic.tools.registry import READ_ONLY_TOOL_NAMES
 
@@ -44,9 +52,21 @@ class Transcript(BaseModel):
     hallucinations: list[Hallucination] = Field(default_factory=list)
     budget: Budget
     status: str
+    # Fix runs. A fix transcript is seeded from a finished investigation, so
+    # it carries the evidence and hypotheses the fixer started from and the
+    # seed budget; `budget` above is the final one.
+    triage: Triage | None = None
+    evidence: list[Evidence] = Field(default_factory=list)
+    seed_budget: Budget | None = None
+    fix_attempts: list[FixAttempt] = Field(default_factory=list)
+    approval: Approval | None = None
+    pull_request: PullRequest | None = None
+    escalation_reason: str | None = None
 
     @classmethod
-    def from_state(cls, state: MedicState, model: str = "unknown") -> Transcript:
+    def from_state(
+        cls, state: MedicState, model: str = "unknown", seed_budget: Budget | None = None
+    ) -> Transcript:
         incident = state["incident"]
         return cls(
             scenario_key=incident.scenario_key,
@@ -58,6 +78,13 @@ class Transcript(BaseModel):
             hallucinations=list(state.get("hallucinations") or []),
             budget=state["budget"],
             status=state.get("status") or "unknown",
+            triage=state.get("triage"),
+            evidence=list(state.get("evidence") or []),
+            seed_budget=seed_budget,
+            fix_attempts=list(state.get("fix_attempts") or []),
+            approval=state.get("approval"),
+            pull_request=state.get("pull_request"),
+            escalation_reason=state.get("escalation_reason"),
         )
 
     def save(self, path: Path) -> Path:
@@ -69,9 +96,17 @@ class Transcript(BaseModel):
     def load(cls, path: Path) -> Transcript:
         return cls.model_validate_json(path.read_text(encoding="utf-8"))
 
+    @property
+    def is_fix_run(self) -> bool:
+        return self.seed_budget is not None
+
 
 def fixture_path(key: str) -> Path:
     return FIXTURES_DIR / key / "transcript.json"
+
+
+def fix_fixture_path(key: str) -> Path:
+    return FIXTURES_DIR / key / "fix_transcript.json"
 
 
 class ReplayChatModel(BaseChatModel):
@@ -172,3 +207,57 @@ def replay_tools(
     for t in tools:
         t.metadata = {"records_by_id": by_id}
     return tools
+
+
+class ReplaySandboxOps:
+    """Answers the fix phase's sandbox operations from a recorded run.
+
+    Apply and validation results come back per attempt, in recorded order;
+    the files the fixer was shown first are the recorded pre-read records,
+    which `replay_tools` then serves by path; the pull request is the one
+    recorded.
+    """
+
+    def __init__(self, transcript: Transcript):
+        self.transcript = transcript
+        self.attempts = list(transcript.fix_attempts)
+        self.applied: list[list[EditSpec]] = []
+        self.resets = 0
+
+    def files_to_read(self, incident: Incident, hypotheses: list[Hypothesis]) -> list[str]:
+        return [
+            str(r.args.get("path"))
+            for r in self.transcript.tool_records
+            if r.origin == "fixer_preread"
+        ]
+
+    def _attempt(self, what: str) -> FixAttempt:
+        idx = len(self.applied) - 1
+        if idx < 0 or idx >= len(self.attempts):
+            raise IndexError(f"replay: no recorded attempt for {what} number {idx + 1}")
+        return self.attempts[idx]
+
+    def apply(self, edits: list[EditSpec], kind: str) -> ApplyResult:
+        self.applied.append(list(edits))
+        result = self._attempt("apply").apply
+        if result is None:
+            raise AssertionError("replay: the recorded attempt applied no edits")
+        return result
+
+    def validate(self, edited_paths: list[str]) -> Validation:
+        result = self._attempt("validation").validation
+        if result is None:
+            raise AssertionError("replay: the recorded attempt was not validated")
+        return result
+
+    def diff(self) -> str:
+        last = self.attempts[-1] if self.attempts else None
+        return last.apply.diff if last and last.apply else ""
+
+    def reset(self) -> None:
+        self.resets += 1
+
+    def open_pr(self, top, evidence, attempt, validation, reviewer_note) -> PullRequest:
+        if self.transcript.pull_request is None:
+            raise AssertionError("replay: no pull request was recorded")
+        return self.transcript.pull_request

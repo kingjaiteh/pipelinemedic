@@ -1,0 +1,227 @@
+{
+ "scenario_key": "bad_commit",
+ "model": "gemini-3.8-flash",
+ "incident": {
+  "source": "chaos",
+  "run_id": "chaos-bad_commit",
+  "scenario": 5,
+  "scenario_key": "bad_commit",
+  "dbt_args": [
+   "build"
+  ],
+  "artifact": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\bad_commit\\repo\\dbt_marketing\\target\\run_results.json",
+  "manifest": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\bad_commit\\repo\\dbt_marketing\\target\\manifest.json",
+  "sandbox_dir": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\bad_commit",
+  "duckdb": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\bad_commit\\marketing.duckdb",
+  "repo": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\bad_commit\\repo",
+  "failing_nodes": [
+   {
+    "unique_id": "model.marketing_attribution.dim_channels",
+    "name": "dim_channels",
+    "resource_type": "model",
+    "status": "error",
+    "message": "Runtime Error in model dim_channels (models\\marts\\dim_channels.sql)\n  Binder Error: Values list \"c\" does not have a column named \"touch_cnt\"\n  \n  LINE 86:     c.touch_cnt,\n               ^"
+   }
+  ],
+  "status_counts": {
+   "success": 12,
+   "pass": 95,
+   "error": 1,
+   "skipped": 21
+  }
+ },
+ "llm_turns": [
+  {
+   "node": "fixer_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "ProposeFix",
+     "args": {
+      "edits": [
+       {
+        "path": "dbt_marketing/models/marts/dim_channels.sql",
+        "find": "select\n    c.channel,\n\n    c.touch_cnt,\n    c.users_reached,",
+        "replace": "select\n    c.channel,\n\n    c.touch_count,\n    c.users_reached,"
+       }
+      ],
+      "kind": "code_patch",
+      "explanation": "Revert `c.touch_cnt` to `c.touch_count` in `dim_channels.sql`. The upstream CTE `by_channel` defines the column as `touch_count`, causing a DuckDB binder error when referenced as `touch_cnt`."
+     },
+     "id": "call_1665081"
+    }
+   ],
+   "usage": {
+    "input_tokens": 2805,
+    "output_tokens": 520,
+    "total_tokens": 3325
+   }
+  }
+ ],
+ "tool_records": [
+  {
+   "id": "T0",
+   "tool": "incident",
+   "args": {},
+   "output": "[T0 incident]\nA dbt command failed. Here is the summary:\n{\n \"dbt_command\": \"dbt build\",\n \"status_counts\": {\n  \"success\": 12,\n  \"pass\": 95,\n  \"error\": 1,\n  \"skipped\": 21\n },\n \"failing_nodes\": [\n  {\n   \"unique_id\": \"model.marketing_attribution.dim_channels\",\n   \"name\": \"dim_channels\",\n   \"resource_type\": \"model\",\n   \"status\": \"error\",\n   \"message\": \"Runtime Error in model dim_channels (models\\\\marts\\\\dim_channels.sql)\\n  Binder Error: Values list \\\"c\\\" does not have a column named \\\"touch_cnt\\\"\\n  \\n  LINE 86:     c.touch_cnt,\\n               ^\"\n  }\n ]\n}",
+   "error": false,
+   "api_call_id": null,
+   "repeat_of": null,
+   "origin": "model"
+  },
+  {
+   "id": "T9",
+   "tool": "read_pipeline_file",
+   "args": {
+    "path": "dbt_marketing/models/marts/dim_channels.sql"
+   },
+   "output": "[T9 read_pipeline_file]\n# dbt_marketing/models/marts/dim_channels.sql (108 lines)\n-- One row per marketing channel: volume, spend, and funnel position.\n--\n-- THE INTERESTING THING ABOUT THIS MODEL IS WHAT IT DOES NOT DO.\n--\n-- raw.channel_ground_truth already holds a tidy per-channel dimension -\n-- cost_per_touch, first_touch_weight, repeat_weight, conversion_lift. Joining\n-- it here would be one line, and every column would be more accurate than what\n-- is computed below, because it is the parameter the data was generated from\n-- rather than an estimate of it.\n--\n-- That is exactly why it is forbidden. conversion_lift is the answer Phase 4\n-- grades against, and the other columns are its neighbours in the same table -\n-- one join and the whole project becomes a tautology. So every number here is\n-- derived from observed touches only, and cost_per_touch_usd is an *observed\n-- average*, not the planted parameter, even though the two will agree.\n--\n-- The general lesson: leakage is rarely a column named `answer`. It is a\n-- convenient dimension table that happens to sit next to one.\n-- tests/assert_no_answer_key_leakage.sql enforces this mechanically.\n\nwith touches as (\n\n    select * from {{ ref('int_touchpoints_sessionized') }}\n\n),\n\njourneys as (\n\n    select * from {{ ref('int_journeys') }}\n\n),\n\nby_channel as (\n\n    select\n        t.channel,\n\n        count(*)                                        as touch_count,\n        count(distinct t.user_id)                       as users_reached,\n        count(distinct t.campaign)                      as campaign_count,\n\n        sum(t.touch_cost_usd)                           as total_spend_usd,\n        avg(t.touch_cost_usd)                           as cost_per_touch_usd,\n\n        -- Funnel position, observed. Upper-funnel channels open journeys they\n        -- do not close; lower-funnel channels do the reverse. This is the\n        -- structural fact that makes first-touch attribution overcredit\n        -- display by 10x in Phase 1's measurements.\n        count(*) filter (where t.is_first_touch)        as first_touch_count,\n        count(*) filter (where t.is_last_touch)         as last_touch_count,\n\n        count(distinct t.user_id) filter (where j.has_converted)\n            as converting_users_reached,\n\n        sum(j.revenue_usd) filter (where t.is_last_touch)\n            as last_touch_revenue_usd\n\n    from touches t\n    inner join journeys j on t.user_id = j.user_id\n    group by t.channel\n\n),\n\ntotals as (\n\n    select\n        sum(touch_count)     as all_touches,\n        sum(total_spend_usd) as all_spend\n    from by_channel\n\n)\n\nselect\n    c.channel,\n\n    c.touch_cnt,\n    c.users_reached,\n    c.campaign_count,\n    c.converting_users_reached,\n\n    round(c.total_spend_usd, 2)                              as total_spend_usd,\n    round(c.cost_per_touch_usd, 4)                           as cost_per_touch_usd,\n    c.cost_per_touch_usd = 0                                 as is_free_channel,\n\n    c.first_touch_count,\n    c.last_touch_count,\n\n    -- Ratio > 1 means the channel opens more journeys than it closes.\n    round(\n        c.first_touch_count::double / nullif(c.last_touch_count, 0), 3\n    )                                                        as first_to_last_touch_ratio,\n\n    round(100.0 * c.touch_count / t.all_touches, 2)          as share_of_touches_pct,\n    round(100.0 * c.total_spend_usd / nullif(t.all_spend, 0), 2)\n                                                             as share_of_spend_pct,\n\n    -- Share of converting users this channel appeared anywhere in. These do\n    -- NOT sum to 100% - a converting journey touches several channels, and\n    -- deciding how to split it between them is the whole of Phase 3.\n    round(\n        100.0 * c.converting_users_reached\n        / nullif((select count(*) from journeys where has_converted), 0), 2\n    )                                                        as pct_of_converters_touched,\n\n    round(c.last_touch_revenue_usd, 2)                       as last_touch_revenue_usd\n\nfrom by_channel c\ncross join totals t\n",
+   "error": false,
+   "api_call_id": null,
+   "repeat_of": null,
+   "origin": "fixer_preread"
+  }
+ ],
+ "hypotheses": [
+  {
+   "rank": 1,
+   "root_cause": "Commit ab4cfdb renamed c.touch_count to c.touch_cnt in models/marts/dim_channels.sql, creating a mismatch with the CTE alias touch_count defined in by_channel and expected in _marts__models.yml.",
+   "category": "code_error",
+   "evidence_ids": [
+    "E1",
+    "E2",
+    "E3",
+    "E4"
+   ],
+   "confidence": 0.95,
+   "fix_kind": "code_patch",
+   "recommended_action": "Revert c.touch_cnt back to c.touch_count in models/marts/dim_channels.sql."
+  }
+ ],
+ "hallucinations": [],
+ "budget": {
+  "tool_calls": 9,
+  "repeated_calls": 0,
+  "llm_calls": 10,
+  "tokens": 58604,
+  "fix_iterations": 1,
+  "fixer_turns": 0,
+  "max_tool_calls": 25,
+  "max_llm_calls": 20,
+  "max_tokens": 200000,
+  "max_fix_iterations": 3,
+  "max_fixer_turns": 3
+ },
+ "status": "done",
+ "triage": {
+  "category": "code_error",
+  "confidence": 0.95,
+  "rationale": "Binder Error: Values list \"c\" does not have a column named \"touch_cnt\""
+ },
+ "evidence": [
+  {
+   "id": "E1",
+   "claim": "The dbt build run failed on model dim_channels with a DuckDB Binder Error indicating column touch_cnt does not exist in CTE alias c.",
+   "tool": "get_run_results",
+   "tool_call_id": "T1",
+   "excerpt": "\"message\":\"Runtime Error in model dim_channels (models\\\\marts\\\\dim_channels.sql)\\n  Binder Error: Values list \\\"c\\\" does not have a column named \\\"touch_cnt\\\"\\n  \\n  LINE 86:     c.touch_cnt,\\n               ^\""
+  },
+  {
+   "id": "E2",
+   "claim": "Recent commit ab4cfdb modified dim_channels.sql by changing c.touch_count to c.touch_cnt in the outer SELECT statement.",
+   "tool": "get_recent_changes",
+   "tool_call_id": "T4",
+   "excerpt": "-    c.touch_count,\n+    c.touch_cnt,"
+  },
+  {
+   "id": "E3",
+   "claim": "The upstream CTE by_channel in dim_channels.sql defines the column alias as touch_count.",
+   "tool": "read_pipeline_file",
+   "tool_call_id": "T3",
+   "excerpt": "count(*)                                        as touch_count,"
+  },
+  {
+   "id": "E4",
+   "claim": "The schema configuration in _marts__models.yml expects the model column to be named touch_count.",
+   "tool": "read_pipeline_file",
+   "tool_call_id": "T7",
+   "excerpt": "- name: touch_count"
+  }
+ ],
+ "seed_budget": {
+  "tool_calls": 8,
+  "repeated_calls": 0,
+  "llm_calls": 9,
+  "tokens": 55279,
+  "fix_iterations": 0,
+  "fixer_turns": 0,
+  "max_tool_calls": 25,
+  "max_llm_calls": 20,
+  "max_tokens": 200000,
+  "max_fix_iterations": 3,
+  "max_fixer_turns": 3
+ },
+ "fix_attempts": [
+  {
+   "iteration": 1,
+   "proposal": {
+    "kind": "code_patch",
+    "explanation": "Revert `c.touch_cnt` to `c.touch_count` in `dim_channels.sql`. The upstream CTE `by_channel` defines the column as `touch_count`, causing a DuckDB binder error when referenced as `touch_cnt`.",
+    "edits": [
+     {
+      "path": "dbt_marketing/models/marts/dim_channels.sql",
+      "find": "select\n    c.channel,\n\n    c.touch_cnt,\n    c.users_reached,",
+      "replace": "select\n    c.channel,\n\n    c.touch_count,\n    c.users_reached,"
+     }
+    ],
+    "recommended_action": ""
+   },
+   "apply": {
+    "ok": true,
+    "outcomes": [
+     {
+      "path": "dbt_marketing/models/marts/dim_channels.sql",
+      "ok": true,
+      "error": null
+     }
+    ],
+    "diff": "--- a/dbt_marketing/models/marts/dim_channels.sql\n+++ b/dbt_marketing/models/marts/dim_channels.sql\n@@ -73,7 +73,7 @@\n select\n     c.channel,\n \n-    c.touch_cnt,\n+    c.touch_count,\n     c.users_reached,\n     c.campaign_count,\n     c.converting_users_reached,\n",
+    "edited_paths": [
+     "dbt_marketing/models/marts/dim_channels.sql"
+    ]
+   },
+   "validation": {
+    "passed": true,
+    "dbt_args": [
+     "build",
+     "--select",
+     "dim_channels+"
+    ],
+    "returncode": 0,
+    "elapsed_s": 6.2,
+    "status_counts": {
+     "success": 2,
+     "pass": 20
+    },
+    "failing": [],
+    "stdout_tail": "22:43:45  16 of 22 START test assert_attribution_grain_is_unique ......................... [RUN]\n22:43:45  15 of 22 START test assert_attributed_conversions_reconcile .................... [RUN]\n22:43:45  15 of 22 PASS assert_attributed_conversions_reconcile .......................... [PASS in 0.06s]\n22:43:45  18 of 22 PASS not_null_fct_attribution_channel_attribution_model ............... [PASS in 0.07s]\n22:43:45  17 of 22 PASS not_null_fct_attribution_channel_attributed_conversions .......... [PASS in 0.07s]\n22:43:45  19 of 22 START test not_null_fct_attribution_channel_channel ................... [RUN]\n22:43:45  20 of 22 START test not_null_fct_attribution_channel_credit_rank ............... [RUN]\n22:43:45  21 of 22 START test not_null_fct_attribution_channel_credit_share_pct .......... [RUN]\n22:43:45  16 of 22 PASS assert_attribution_grain_is_unique ............................... [PASS in 0.11s]\n22:43:45  22 of 22 START test relationships_fct_attribution_channel_channel__channel__ref_dim_channels_  [RUN]\n22:43:45  19 of 22 PASS not_null_fct_attribution_channel_channel ......................... [PASS in 0.08s]\n22:43:45  21 of 22 PASS not_null_fct_attribution_channel_credit_share_pct ................ [PASS in 0.08s]\n22:43:45  20 of 22 PASS not_null_fct_attribution_channel_credit_rank ..................... [PASS in 0.08s]\n22:43:45  22 of 22 PASS relationships_fct_attribution_channel_channel__channel__ref_dim_channels_  [PASS in 0.05s]\n22:43:45  \n22:43:45  Finished running 2 table models, 20 data tests in 0 hours 0 minutes and 1.59 seconds (1.59s).\n22:43:45  \n22:43:45  Completed successfully\n22:43:45  \n22:43:45  Done. PASS=22 WARN=0 ERROR=0 SKIP=0 NO-OP=0 TOTAL=22",
+    "error": null
+   }
+  }
+ ],
+ "approval": {
+  "status": "approved",
+  "note": "one-line revert of the chaos commit, build green",
+  "decided_at": "2026-09-12T22:44:28+00:00"
+ },
+ "pull_request": {
+  "mode": "dry-run",
+  "title": "medic: fix dim_channels: Revert `c.touch_cnt` to `c.touch_count` in `dim_channels.sql`",
+  "branch": "medic/bad_commit",
+  "body": "## Incident\n\n`dbt build` failed (chaos-bad_commit).\n- `dim_channels` error: Runtime Error in model dim_channels (models\\marts\\dim_channels.sql)\n\n## Root cause\n\nCommit ab4cfdb renamed c.touch_count to c.touch_cnt in models/marts/dim_channels.sql, creating a mismatch with the CTE alias touch_count defined in by_channel and expected in _marts__models.yml. (confidence 0.95, code_error)\n\nEvidence, quoted from tool results:\n\n- The dbt build run failed on model dim_channels with a DuckDB Binder Error indicating column touch_cnt does not exist in CTE alias c.\n  `\"message\":\"Runtime Error in model dim_channels (models\\\\marts\\\\dim_channels.sql)\\n  Binder Error: Values list \\\"c\\\" does not have a column named \\\"touch_cnt\\\"\\n  \\n  LINE 86:     c.touch_cnt,\\n       `\n- Recent commit ab4cfdb modified dim_channels.sql by changing c.touch_count to c.touch_cnt in the outer SELECT statement.\n  `-    c.touch_count,\n+    c.touch_cnt,`\n- The upstream CTE by_channel in dim_channels.sql defines the column alias as touch_count.\n  `count(*)                                        as touch_count,`\n- The schema configuration in _marts__models.yml expects the model column to be named touch_count.\n  `- name: touch_count`\n\n## Fix\n\nRevert `c.touch_cnt` to `c.touch_count` in `dim_channels.sql`. The upstream CTE `by_channel` defines the column as `touch_count`, causing a DuckDB binder error when referenced as `touch_cnt`.\n\n```diff\n--- a/dbt_marketing/models/marts/dim_channels.sql\n+++ b/dbt_marketing/models/marts/dim_channels.sql\n@@ -73,7 +73,7 @@\n select\n     c.channel,\n \n-    c.touch_cnt,\n+    c.touch_count,\n     c.users_reached,\n     c.campaign_count,\n     c.converting_users_reached,\n```\n\n## Validation\n\ndbt build --select dim_channels+ exit 0 (pass=20, success=2)\n\n## Review\n\nApproved by a human reviewer. one-line revert of the chaos commit, build green\n\nOpened by PipelineMedic after human approval; nothing is merged automatically.",
+  "path": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\incidents\\bad_commit.pr.md",
+  "url": null,
+  "commit": null
+ },
+ "escalation_reason": null
+}

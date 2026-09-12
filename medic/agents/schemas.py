@@ -60,3 +60,41 @@ class HypothesisSet(BaseModel):
     """Ranked root-cause hypotheses. Submit exactly once."""
 
     hypotheses: list[HypothesisItem] = Field(description="1 to 3 hypotheses, most likely first")
+
+
+class EditItem(BaseModel):
+    path: str = Field(
+        description="File to edit, relative to the repository root, for example "
+        "dbt_marketing/models/staging/stg_touchpoints.sql"
+    )
+    find: str = Field(
+        description="Exact current text to replace, copied character for character including "
+        "indentation. Must occur exactly once in the file. Empty only when creating a new file."
+    )
+    replace: str = Field(description="The text that replaces `find`")
+
+
+class ProposeFix(BaseModel):
+    """Propose a fix, or decline to change code. Submit once per attempt."""
+
+    kind: FixKind = Field(
+        description=(
+            "code_patch: pipeline code changes and the failure goes away without hiding bad "
+            "data; test_change: the test itself is wrong; upstream_data_issue: the data is "
+            "wrong and the pipeline correctly caught it, no edits; needs_human: unclear, no edits"
+        )
+    )
+    explanation: str = Field(
+        description="Two or three sentences: what is wrong and what the change does, or why "
+        "no code change is right"
+    )
+    edits: list[EditItem] = Field(
+        default_factory=list,
+        description="Exact replacements to apply, in order. Empty for upstream_data_issue "
+        "and needs_human.",
+    )
+    recommended_action: str = Field(
+        default="",
+        description="For upstream_data_issue or needs_human: the one concrete thing the data "
+        "owner or reviewer should do",
+    )

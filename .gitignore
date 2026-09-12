@@ -28,3 +28,6 @@ Thumbs.db
 
 # Resume working file, never published
 RESUME_POINTS.md
+
+# LangGraph checkpoints (SQLite)
+checkpoints.sqlite*

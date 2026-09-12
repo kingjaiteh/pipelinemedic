@@ -218,24 +218,26 @@ class Sandbox:
         env.pop("DBT_TARGET_PATH", None)
         return env
 
-    def dbt_command(self, *args: str) -> list[str]:
-        return [
-            str(self.target.dbt_exe),
-            *args,
-            "--project-dir",
-            str(self.dbt_dir),
-            "--no-use-colors",
-        ]
+    def dbt_command(self, *args: str, target_path: Path | None = None) -> list[str]:
+        cmd = [str(self.target.dbt_exe), *args]
+        if target_path is not None:
+            cmd += ["--target-path", str(target_path)]
+        return [*cmd, "--project-dir", str(self.dbt_dir), "--no-use-colors"]
 
-    def run_dbt(self, *args: str, timeout: int = 600) -> DbtRun:
-        """Run the pipeline's dbt inside the worktree against the copy."""
+    def run_dbt(self, *args: str, timeout: int = 600, target_path: Path | None = None) -> DbtRun:
+        """Run the pipeline's dbt inside the worktree against the copy.
+
+        `target_path` sends the artifacts somewhere other than the worktree's
+        target/, so a validation build does not overwrite the incident's
+        run_results.json.
+        """
         if not self.target.dbt_exe.exists():
             raise SandboxError(f"dbt not found at {self.target.dbt_exe}")
         if not self.exists():
             raise SandboxError(f"sandbox {self.name!r} is not set up")
         started = time.monotonic()
         proc = subprocess.run(
-            self.dbt_command(*args),
+            self.dbt_command(*args, target_path=target_path),
             env=self.dbt_env(),
             cwd=str(self.dbt_dir),
             capture_output=True,
@@ -246,18 +248,18 @@ class Sandbox:
             check=False,
         )
         elapsed = time.monotonic() - started
-        artifact, summary = self._artifact_for(args)
+        artifact, summary = self._artifact_for(args, target_path or self.target_dir)
         return DbtRun(
             tuple(args), proc.returncode, proc.stdout, proc.stderr, elapsed, artifact, summary
         )
 
     def _artifact_for(
-        self, args: tuple[str, ...]
+        self, args: tuple[str, ...], target_dir: Path
     ) -> tuple[Path | None, RunSummary | FreshnessSummary | None]:
         if args[:2] == ("source", "freshness"):
-            path = self.sources_json
+            path = target_dir / "sources.json"
             return (path, summarize_source_freshness(path)) if path.exists() else (path, None)
         if args and args[0] in RUN_RESULTS_COMMANDS:
-            path = self.run_results
+            path = target_dir / "run_results.json"
             return (path, summarize_run_results(path)) if path.exists() else (path, None)
         return None, None

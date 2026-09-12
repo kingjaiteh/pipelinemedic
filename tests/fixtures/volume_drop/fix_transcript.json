@@ -1,0 +1,261 @@
+{
+ "scenario_key": "volume_drop",
+ "model": "gemini-3.6-flash",
+ "incident": {
+  "source": "chaos",
+  "run_id": "chaos-volume_drop",
+  "scenario": 7,
+  "scenario_key": "volume_drop",
+  "dbt_args": [
+   "build"
+  ],
+  "artifact": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\volume_drop\\repo\\dbt_marketing\\target\\run_results.json",
+  "manifest": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\volume_drop\\repo\\dbt_marketing\\target\\manifest.json",
+  "sandbox_dir": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\volume_drop",
+  "duckdb": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\volume_drop\\marketing.duckdb",
+  "repo": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\volume_drop\\repo",
+  "failing_nodes": [
+   {
+    "unique_id": "test.marketing_attribution.assert_daily_touchpoint_volume",
+    "name": "assert_daily_touchpoint_volume",
+    "resource_type": "test",
+    "status": "fail",
+    "message": "Got 1 result, configured to fail if != 0"
+   }
+  ],
+  "status_counts": {
+   "success": 3,
+   "pass": 19,
+   "fail": 1,
+   "skipped": 106
+  }
+ },
+ "llm_turns": [
+  {
+   "node": "fixer_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "list_pipeline_files",
+     "args": {
+      "subdir": "tests"
+     },
+     "id": "call_2235020"
+    }
+   ],
+   "usage": {
+    "input_tokens": 2084,
+    "output_tokens": 214,
+    "total_tokens": 2298
+   }
+  },
+  {
+   "node": "fixer_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "list_pipeline_files",
+     "args": {
+      "subdir": "dbt_marketing"
+     },
+     "id": "call_988888"
+    }
+   ],
+   "usage": {
+    "input_tokens": 2334,
+    "output_tokens": 33,
+    "total_tokens": 2367
+   }
+  },
+  {
+   "node": "fixer_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "read_pipeline_file",
+     "args": {
+      "path": "dbt_marketing/tests/assert_daily_touchpoint_volume.sql"
+     },
+     "id": "call_1519203"
+    }
+   ],
+   "usage": {
+    "input_tokens": 2957,
+    "output_tokens": 57,
+    "total_tokens": 3014
+   }
+  },
+  {
+   "node": "fixer_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "ProposeFix",
+     "args": {
+      "recommended_action": "Investigate the upstream touchpoints data source for missing or incomplete loads on 2026-02-10.",
+      "kind": "upstream_data_issue",
+      "edits": [],
+      "explanation": "The assert_daily_touchpoint_volume test correctly caught an abnormal volume drop in touchpoints data on 2026-02-10 (684 touchpoints vs a trailing 7-day median of 3175). This indicates an incomplete or corrupted data load upstream rather than a model or test bug."
+     },
+     "id": "call_2680836"
+    }
+   ],
+   "usage": {
+    "input_tokens": 3642,
+    "output_tokens": 407,
+    "total_tokens": 4049
+   }
+  }
+ ],
+ "tool_records": [
+  {
+   "id": "T0",
+   "tool": "incident",
+   "args": {},
+   "output": "[T0 incident]\nA dbt command failed. Here is the summary:\n{\n \"dbt_command\": \"dbt build\",\n \"status_counts\": {\n  \"success\": 3,\n  \"pass\": 19,\n  \"fail\": 1,\n  \"skipped\": 106\n },\n \"failing_nodes\": [\n  {\n   \"unique_id\": \"test.marketing_attribution.assert_daily_touchpoint_volume\",\n   \"name\": \"assert_daily_touchpoint_volume\",\n   \"resource_type\": \"test\",\n   \"status\": \"fail\",\n   \"message\": \"Got 1 result, configured to fail if != 0\"\n  }\n ]\n}",
+   "error": false,
+   "api_call_id": null,
+   "repeat_of": null,
+   "origin": "model"
+  },
+  {
+   "id": "T9",
+   "tool": "read_pipeline_file",
+   "args": {
+    "path": "dbt_marketing/models/staging/stg_touchpoints.sql"
+   },
+   "output": "[T9 read_pipeline_file]\n# dbt_marketing/models/staging/stg_touchpoints.sql (42 lines)\n-- One row per marketing touch, cleaned and typed. No business logic.\n--\n-- Staging's job is to make the source safe to build on: stable column names,\n-- explicit types, trimmed strings. Anything that involves a decision about\n-- meaning (what counts as a session, which touch gets credit) belongs\n-- downstream. Keeping that line sharp is what makes it possible to say\n-- \"the source is fine, the logic is wrong\" when a number looks off.\n\nwith source as (\n\n    select * from {{ source('raw', 'touchpoints') }}\n\n),\n\nrenamed as (\n\n    select\n        -- Composite key. The generator has no touch-level id, so we build one\n        -- from the natural key; the tests below assert it is actually unique.\n        cast(user_id as varchar) || '-' || cast(touch_number as varchar)\n            as touchpoint_id,\n\n        cast(user_id as bigint)          as user_id,\n\n        -- Left 0-based here on purpose: renaming is staging's job, re-indexing\n        -- is not. int_touchpoints_sessionized derives a 1-based touch_seq.\n        cast(touch_number as integer)    as touch_index,\n\n        -- raw arrives as TIMESTAMP_NS from pandas. Nothing here needs\n        -- nanoseconds, and the wider type propagates awkwardly into joins.\n        cast(touched_at as timestamp)    as touched_at,\n\n        lower(trim(channel))             as channel,\n        lower(trim(campaign))            as campaign,\n\n        cast(cost as double)             as touch_cost_usd\n\n    from source\n\n)\n\nselect * from renamed\n",
+   "error": false,
+   "api_call_id": null,
+   "repeat_of": null,
+   "origin": "fixer_preread"
+  },
+  {
+   "id": "T10",
+   "tool": "list_pipeline_files",
+   "args": {
+    "subdir": "tests"
+   },
+   "output": "[T10 list_pipeline_files]\n{\"error\": \"no directory 'tests'\"}",
+   "error": false,
+   "api_call_id": "call_2235020",
+   "repeat_of": null,
+   "origin": "model"
+  },
+  {
+   "id": "T11",
+   "tool": "list_pipeline_files",
+   "args": {
+    "subdir": "dbt_marketing"
+   },
+   "output": "[T11 list_pipeline_files]\n[\"dbt_marketing/dbt_project.yml\", \"dbt_marketing/macros/generate_schema_name.sql\", \"dbt_marketing/models/intermediate/_intermediate__models.yml\", \"dbt_marketing/models/intermediate/int_attribution_weights.sql\", \"dbt_marketing/models/intermediate/int_journeys.sql\", \"dbt_marketing/models/intermediate/int_sessions.sql\", \"dbt_marketing/models/intermediate/int_touchpoints_sessionized.sql\", \"dbt_marketing/models/marts/_marts__models.yml\", \"dbt_marketing/models/marts/dim_channels.sql\", \"dbt_marketing/models/marts/fct_attribution_channel.sql\", \"dbt_marketing/models/marts/fct_attribution_touchpoints.sql\", \"dbt_marketing/models/marts/fct_journey_features.sql\", \"dbt_marketing/models/marts/fct_journeys.sql\", \"dbt_marketing/models/marts/fct_sessions.sql\", \"dbt_marketing/models/marts/fct_touchpoints.sql\", \"dbt_marketing/models/staging/_sources.yml\", \"dbt_marketing/models/staging/_staging__models.yml\", \"dbt_marketing/models/staging/stg_conversions.sql\", \"dbt_marketing/models/staging/stg_kaggle_ads.sql\", \"dbt_marketing/models/staging/stg_touchpoints.sql\", \"dbt_marketing/profiles.yml\", \"dbt_marketing/tests/assert_attributed_conversions_reconcile.sql\", \"dbt_marketing/tests/assert_attribution_grain_is_unique.sql\", \"dbt_marketing/tests/assert_credit_sums_to_one.sql\", \"dbt_marketing/tests/assert_daily_touchpoint_volume.sql\", \"dbt_marketing/tests/assert_journey_length_reconciles.sql\", \"dbt_marketing/tests/assert_models_agree_on_single_touch.sql\", \"dbt_marketing/tests/assert_no_answer_key_leakage.sql\", \"dbt_marketing/tests/assert_no_post_outcome_features.sql\", \"dbt_marketing/tests/assert_sessions_partition_touchpoints.sql\", \"dbt_marketing/tests/assert_touches_precede_conversion.sql\"]",
+   "error": false,
+   "api_call_id": "call_988888",
+   "repeat_of": null,
+   "origin": "model"
+  },
+  {
+   "id": "T12",
+   "tool": "read_pipeline_file",
+   "args": {
+    "path": "dbt_marketing/tests/assert_daily_touchpoint_volume.sql"
+   },
+   "output": "[T12 read_pipeline_file]\n# dbt_marketing/tests/assert_daily_touchpoint_volume.sql (70 lines)\n{#- One parent, so dagster-dbt turns this into an asset check on\n    stg_touchpoints without a meta hint (see assert_touches_precede_conversion\n    for the multi-parent case). -#}\n\n-- Volume drop detection. A day whose touchpoint count is below half the\n-- median of the seven days before it is a failure. Half the trailing median is\n-- deliberately loose: normal day-to-day noise here is well under 20%, so this\n-- only fires when a chunk of a day is missing, which is what a partial load or\n-- a truncated export looks like.\n--\n-- Scoped to the steady-state window. generate.py starts new journeys for the\n-- first window_days * 0.6 = 54 days and then only finishes existing ones, so\n-- volume decays by design from day 55 onwards. Judging that decay would fail\n-- on clean data, so the window is a var (touchpoint_volume_window_days) and\n-- the test stops at the end of it. The first seven days are skipped because a\n-- trailing median needs seven prior days to mean anything.\n\nwith daily as (\n\n    select\n        cast(touched_at as date) as touch_date,\n        count(*)                 as touch_count\n    from {{ ref('stg_touchpoints') }}\n    group by 1\n\n),\n\nsteady_window as (\n\n    select\n        min(touch_date) + interval {{ var('touchpoint_volume_window_days') }} day\n            as ends_before\n    from daily\n\n),\n\nwith_trailing as (\n\n    select\n        touch_date,\n        touch_count,\n\n        median(touch_count) over (\n            order by touch_date\n            rows between 7 preceding and 1 preceding\n        ) as trailing_median,\n\n        count(*) over (\n            order by touch_date\n            rows between 7 preceding and 1 preceding\n        ) as trailing_days\n\n    from daily\n\n)\n\nselect\n    t.touch_date,\n    t.touch_count,\n    t.trailing_median,\n    round(100.0 * t.touch_count / t.trailing_median, 1) as pct_of_trailing_median\n\nfrom with_trailing t\ncross join steady_window w\n\nwhere t.touch_date < w.ends_before\n  and t.trailing_days = 7\n  and t.touch_count < 0.5 * t.trailing_median\n\norder by t.touch_date\n",
+   "error": false,
+   "api_call_id": "call_1519203",
+   "repeat_of": null,
+   "origin": "model"
+  }
+ ],
+ "hypotheses": [
+  {
+   "rank": 1,
+   "root_cause": "The raw touchpoint volume for 2026-02-10 dropped abnormally to 684 rows (compared to a trailing 7-day median of 3175.0), correctly triggering the assert_daily_touchpoint_volume test.",
+   "category": "volume_anomaly",
+   "evidence_ids": [
+    "E1",
+    "E2",
+    "E3"
+   ],
+   "confidence": 1.0,
+   "fix_kind": "upstream_data_issue",
+   "recommended_action": "Investigate the upstream data source for missing or incomplete touchpoint loads on 2026-02-10."
+  }
+ ],
+ "hallucinations": [],
+ "budget": {
+  "tool_calls": 12,
+  "repeated_calls": 0,
+  "llm_calls": 11,
+  "tokens": 36262,
+  "fix_iterations": 1,
+  "fixer_turns": 0,
+  "max_tool_calls": 25,
+  "max_llm_calls": 30,
+  "max_tokens": 300000,
+  "max_fix_iterations": 3,
+  "max_fixer_turns": 3
+ },
+ "status": "done",
+ "triage": {
+  "category": "volume_anomaly",
+  "confidence": 1.0,
+  "rationale": "Got 1 result, configured to fail if != 0"
+ },
+ "evidence": [
+  {
+   "id": "E1",
+   "claim": "The test assert_daily_touchpoint_volume failed because the daily touchpoint volume on 2026-02-10 dropped to 684, which is well below half of the trailing 7-day median of 3175.0 (21.5% of the trailing median).",
+   "tool": "query_duckdb",
+   "tool_call_id": "T8",
+   "excerpt": "[\"2026-02-10\", 684, 3175.0, 21.5]"
+  },
+  {
+   "id": "E2",
+   "claim": "The raw touchpoints data contains an abnormal volume drop on 2026-02-10 with only 684 touchpoints compared to over 3000 on adjacent days.",
+   "tool": "query_duckdb",
+   "tool_call_id": "T7",
+   "excerpt": "[\"2026-02-10\", 684], [\"2026-02-11\", 3135]"
+  },
+  {
+   "id": "E3",
+   "claim": "The test assert_daily_touchpoint_volume flags any day in the steady window where the touchpoint count is less than half of the trailing median.",
+   "tool": "read_pipeline_file",
+   "tool_call_id": "T4",
+   "excerpt": "where t.touch_date < w.ends_before\n  and t.trailing_days = 7\n  and t.touch_count < 0.5 * t.trailing_median"
+  }
+ ],
+ "seed_budget": {
+  "tool_calls": 8,
+  "repeated_calls": 0,
+  "llm_calls": 7,
+  "tokens": 24534,
+  "fix_iterations": 0,
+  "fixer_turns": 0,
+  "max_tool_calls": 25,
+  "max_llm_calls": 30,
+  "max_tokens": 300000,
+  "max_fix_iterations": 3,
+  "max_fixer_turns": 3
+ },
+ "fix_attempts": [
+  {
+   "iteration": 1,
+   "proposal": {
+    "kind": "upstream_data_issue",
+    "explanation": "The assert_daily_touchpoint_volume test correctly caught an abnormal volume drop in touchpoints data on 2026-02-10 (684 touchpoints vs a trailing 7-day median of 3175). This indicates an incomplete or corrupted data load upstream rather than a model or test bug.",
+    "edits": [],
+    "recommended_action": "Investigate the upstream touchpoints data source for missing or incomplete loads on 2026-02-10."
+   },
+   "apply": null,
+   "validation": null
+  }
+ ],
+ "approval": {
+  "status": "approved",
+  "note": "correct",
+  "decided_at": "2026-09-12T22:50:19+00:00"
+ },
+ "pull_request": null,
+ "escalation_reason": null
+}

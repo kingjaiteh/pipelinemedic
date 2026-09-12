@@ -7,6 +7,7 @@ dependencies = [
     # Phase 0 / 1: graph, model provider, tracing, warehouse reads.
     # Floors match the majors in uv.lock; the 1.x LangGraph API is assumed.
     "langgraph>=1.0",
+    # Phase 2: SQLite checkpoints so a run paused for review resumes elsewhere.
     "langgraph-checkpoint-sqlite>=3.0",
     "langchain-core>=1.0",
     "langchain-google-genai>=4.0",
@@ -15,6 +16,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "pydantic>=2.8",
     "typer>=0.15",
+    # Phase 2: the GitHub REST call in open_pull_request. Local git is a subprocess.
     "httpx>=0.27",
     "pyyaml>=6.0",
     "langchain>=1.0",
@@ -22,8 +24,6 @@ dependencies = [
 
 [project.optional-dependencies]
 anthropic = ["langchain-anthropic>=0.3"]
-# Phase 2: opening pull requests. Local git is called as a subprocess.
-github = ["PyGithub>=2.4"]
 # Optional LLM-judge metric; the core eval suite is plain pytest.
 judge = ["deepeval>=3.0"]
 # Phase 4: webhook receiver + run API

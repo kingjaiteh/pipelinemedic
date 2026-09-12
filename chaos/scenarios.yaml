@@ -48,7 +48,10 @@ scenarios:
     mutation: "raw.touchpoints.cost recreated as VARCHAR with 'n/a' in about 1 row per 5000"
     dbt_args: [build]
     category: schema_drift
-    fix_kind: code_patch
+    # Was code_patch (try_cast) until Phase 2 showed that the not_null test on
+    # touch_cost_usd still fails on the 37 'n/a' rows, so no code change passes
+    # the sandbox without hiding data. See PLAN.md section 14, 2026-09-12.
+    fix_kind: upstream_data_issue
     expected_failing: [not_null_stg_touchpoints_touch_cost_usd]
     error_contains: "Conversion Error"
 

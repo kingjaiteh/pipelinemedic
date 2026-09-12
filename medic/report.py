@@ -11,14 +11,23 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from medic.graph.state import (
+    Approval,
     Budget,
     Evidence,
+    FixAttempt,
     Hallucination,
     Hypothesis,
     Incident,
     MedicState,
+    PullRequest,
     Triage,
+    Validation,
 )
+
+
+def _is_test_path(path: str) -> bool:
+    parts = path.replace("\\", "/").split("/")
+    return "tests" in parts or "macros" in parts or parts[-1] == "dbt_project.yml"
 
 
 def root_cause_matches(text: str, terms: tuple[str, ...] | list[str]) -> bool:
@@ -43,6 +52,12 @@ class TriageReport(BaseModel):
     status: str
     escalation_reason: str | None = None
     ground_truth: dict[str, Any] = Field(default_factory=dict)
+    # Fix phase, present once `medic fix` has run on the incident.
+    thread_id: str | None = None
+    fix_attempts: list[FixAttempt] = Field(default_factory=list)
+    validation: Validation | None = None
+    approval: Approval | None = None
+    pull_request: PullRequest | None = None
 
     @classmethod
     def from_state(
@@ -50,6 +65,7 @@ class TriageReport(BaseModel):
         state: MedicState,
         ground_truth: dict[str, Any] | None = None,
         model: str = "unknown",
+        thread_id: str | None = None,
     ) -> TriageReport:
         return cls(
             created_at=datetime.now(UTC).isoformat(timespec="seconds"),
@@ -63,7 +79,24 @@ class TriageReport(BaseModel):
             status=state.get("status") or "unknown",
             escalation_reason=state.get("escalation_reason"),
             ground_truth=ground_truth or {},
+            thread_id=thread_id,
+            fix_attempts=list(state.get("fix_attempts") or []),
+            validation=state.get("validation"),
+            approval=state.get("approval"),
+            pull_request=state.get("pull_request"),
         )
+
+    @classmethod
+    def load(cls, path: Path) -> TriageReport:
+        return cls.model_validate_json(path.read_text(encoding="utf-8"))
+
+    @property
+    def top(self) -> Hypothesis | None:
+        return self.hypotheses[0] if self.hypotheses else None
+
+    @property
+    def last_attempt(self) -> FixAttempt | None:
+        return self.fix_attempts[-1] if self.fix_attempts else None
 
     def with_ground_truth(
         self, category: str, fix_kind: str, terms: tuple[str, ...]
@@ -119,6 +152,9 @@ class TriageReport(BaseModel):
             lines.append(f"stripped by critic ({len(self.hallucinations)}):")
             for hal in self.hallucinations:
                 lines.append(f"  {hal.kind} {hal.ref}: {hal.reason}")
+        if self.fix_attempts:
+            lines.append("")
+            lines.extend(self.render_fix())
         if self.ground_truth:
             g = self.ground_truth
             lines.append("")
@@ -128,11 +164,75 @@ class TriageReport(BaseModel):
                 + f", category {'ok' if g['top1_category_correct'] else 'off'} (expected {g['category']})"
                 + f", fix kind {'ok' if g['top1_fix_kind_correct'] else 'off'} (expected {g['fix_kind']})"
             )
+            if "fixer_kind_correct" in g:
+                lines.append(
+                    f"fixer: kind {g['fixer_kind']} "
+                    + ("matches" if g["fixer_kind_correct"] else "does not match")
+                    + f" the expected {g['fix_kind']}"
+                    + (", tests untouched" if g.get("tests_untouched") else ", TESTS TOUCHED")
+                )
         return "\n".join(lines)
+
+    def render_fix(self) -> list[str]:
+        lines: list[str] = []
+        for a in self.fix_attempts:
+            lines.append(f"attempt {a.iteration}: {a.outcome}; {a.proposal.kind}")
+            lines.append(f"    {a.proposal.explanation}")
+            if a.proposal.recommended_action:
+                lines.append(f"    action: {a.proposal.recommended_action}")
+            if a.apply is not None and not a.apply.ok:
+                for o in a.apply.outcomes:
+                    if not o.ok:
+                        lines.append(f"    rejected: {o.error}")
+            if a.validation is not None:
+                lines.append(f"    validation: {a.validation.summary()}")
+        last = self.last_attempt
+        if last and last.apply and last.apply.ok and last.apply.diff:
+            lines.append("")
+            lines.append(last.apply.diff.rstrip())
+        if self.approval:
+            lines.append("")
+            lines.append(
+                f"review: {self.approval.status}"
+                + (f" ({self.approval.note})" if self.approval.note else "")
+            )
+        if self.pull_request:
+            pr = self.pull_request
+            lines.append(f"pull request ({pr.mode}): {pr.url or pr.path}")
+            lines.append(f"    {pr.title}")
+        if self.thread_id and self.status == "awaiting_review":
+            lines.append("")
+            lines.append("waiting for review. Resume with one of:")
+            lines.append(f"  medic resume {self.thread_id} --approve")
+            lines.append(f'  medic resume {self.thread_id} --reject "why"')
+        return lines
+
+    def with_fix_ground_truth(self, fix_kind: str) -> TriageReport:
+        """Grade what the fixer did: kind, and whether tests were left alone."""
+        last = self.last_attempt
+        touched = any(
+            _is_test_path(p)
+            for a in self.fix_attempts
+            if a.apply and a.apply.ok
+            for p in a.apply.edited_paths
+        )
+        self.ground_truth.update(
+            {
+                "fixer_kind": last.proposal.kind if last else None,
+                "fixer_kind_correct": bool(last) and last.proposal.kind == fix_kind,
+                "sandbox_passed": bool(self.validation) and self.validation.passed,
+                "tests_untouched": not touched,
+            }
+        )
+        return self
 
 
 def report_path(sandbox_root: Path, key: str) -> Path:
     return sandbox_root / "incidents" / f"{key}.triage.json"
+
+
+def fix_report_path(sandbox_root: Path, key: str) -> Path:
+    return sandbox_root / "incidents" / f"{key}.fix.json"
 
 
 def summary_row(report: TriageReport) -> dict[str, Any]:

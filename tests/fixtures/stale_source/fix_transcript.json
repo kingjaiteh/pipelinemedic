@@ -1,0 +1,221 @@
+{
+ "scenario_key": "stale_source",
+ "model": "gemini-3.6-flash",
+ "incident": {
+  "source": "chaos",
+  "run_id": "chaos-stale_source",
+  "scenario": 6,
+  "scenario_key": "stale_source",
+  "dbt_args": [
+   "source",
+   "freshness"
+  ],
+  "artifact": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\stale_source\\repo\\dbt_marketing\\target\\sources.json",
+  "manifest": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\stale_source\\repo\\dbt_marketing\\target\\manifest.json",
+  "sandbox_dir": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\stale_source",
+  "duckdb": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\stale_source\\marketing.duckdb",
+  "repo": "C:\\Users\\omarj\\Documents\\Data_Stuffs\\pipelinemedic\\sandbox\\stale_source\\repo",
+  "failing_nodes": [
+   {
+    "unique_id": "source.marketing_attribution.raw.touchpoints",
+    "name": "raw.touchpoints",
+    "resource_type": "source",
+    "status": "error",
+    "message": "error: max_loaded_at is 31.0 days old (error after 7 day)"
+   }
+  ],
+  "status_counts": {
+   "error": 1
+  }
+ },
+ "llm_turns": [
+  {
+   "node": "fixer_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "list_pipeline_files",
+     "args": {},
+     "id": "call_2889288"
+    }
+   ],
+   "usage": {
+    "input_tokens": 1861,
+    "output_tokens": 239,
+    "total_tokens": 2100
+   }
+  },
+  {
+   "node": "fixer_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "read_pipeline_file",
+     "args": {
+      "path": "models/staging/_sources.yml"
+     },
+     "id": "call_163534"
+    }
+   ],
+   "usage": {
+    "input_tokens": 2689,
+    "output_tokens": 53,
+    "total_tokens": 2742
+   }
+  },
+  {
+   "node": "fixer_agent",
+   "content": "[]",
+   "tool_calls": [
+    {
+     "name": "ProposeFix",
+     "args": {
+      "recommended_action": "Investigate and restart the upstream ingestion pipeline for raw.touchpoints to load touchpoint data past March 14, 2026 up to April 14, 2026.",
+      "kind": "upstream_data_issue",
+      "edits": [],
+      "explanation": "The source freshness check for raw.touchpoints failed because max(touched_at) is March 14, 2026, which is 31 days prior to the data_as_of reference date of April 14, 2026, exceeding the 7-day freshness threshold. The loaded_at_query accurately calculated the data lag, correctly identifying stale source data from an incomplete or halted ingestion run."
+     },
+     "id": "call_2262412"
+    }
+   ],
+   "usage": {
+    "input_tokens": 3665,
+    "output_tokens": 999,
+    "total_tokens": 4664
+   }
+  }
+ ],
+ "tool_records": [
+  {
+   "id": "T0",
+   "tool": "incident",
+   "args": {},
+   "output": "[T0 incident]\nA dbt command failed. Here is the summary:\n{\n \"dbt_command\": \"dbt source freshness\",\n \"status_counts\": {\n  \"error\": 1\n },\n \"failing_nodes\": [\n  {\n   \"unique_id\": \"source.marketing_attribution.raw.touchpoints\",\n   \"name\": \"raw.touchpoints\",\n   \"resource_type\": \"source\",\n   \"status\": \"error\",\n   \"message\": \"error: max_loaded_at is 31.0 days old (error after 7 day)\"\n  }\n ]\n}",
+   "error": false,
+   "api_call_id": null,
+   "repeat_of": null,
+   "origin": "model"
+  },
+  {
+   "id": "T9",
+   "tool": "list_pipeline_files",
+   "args": {},
+   "output": "[T9 list_pipeline_files]\n[\"dbt_marketing/dbt_project.yml\", \"dbt_marketing/macros/generate_schema_name.sql\", \"dbt_marketing/models/intermediate/_intermediate__models.yml\", \"dbt_marketing/models/intermediate/int_attribution_weights.sql\", \"dbt_marketing/models/intermediate/int_journeys.sql\", \"dbt_marketing/models/intermediate/int_sessions.sql\", \"dbt_marketing/models/intermediate/int_touchpoints_sessionized.sql\", \"dbt_marketing/models/marts/_marts__models.yml\", \"dbt_marketing/models/marts/dim_channels.sql\", \"dbt_marketing/models/marts/fct_attribution_channel.sql\", \"dbt_marketing/models/marts/fct_attribution_touchpoints.sql\", \"dbt_marketing/models/marts/fct_journey_features.sql\", \"dbt_marketing/models/marts/fct_journeys.sql\", \"dbt_marketing/models/marts/fct_sessions.sql\", \"dbt_marketing/models/marts/fct_touchpoints.sql\", \"dbt_marketing/models/staging/_sources.yml\", \"dbt_marketing/models/staging/_staging__models.yml\", \"dbt_marketing/models/staging/stg_conversions.sql\", \"dbt_marketing/models/staging/stg_kaggle_ads.sql\", \"dbt_marketing/models/staging/stg_touchpoints.sql\", \"dbt_marketing/profiles.yml\", \"dbt_marketing/tests/assert_attributed_conversions_reconcile.sql\", \"dbt_marketing/tests/assert_attribution_grain_is_unique.sql\", \"dbt_marketing/tests/assert_credit_sums_to_one.sql\", \"dbt_marketing/tests/assert_daily_touchpoint_volume.sql\", \"dbt_marketing/tests/assert_journey_length_reconciles.sql\", \"dbt_marketing/tests/assert_models_agree_on_single_touch.sql\", \"dbt_marketing/tests/assert_no_answer_key_leakage.sql\", \"dbt_marketing/tests/assert_no_post_outcome_features.sql\", \"dbt_marketing/tests/assert_sessions_partition_touchpoints.sql\", \"dbt_marketing/tests/assert_touches_precede_conversion.sql\"]",
+   "error": false,
+   "api_call_id": "call_2889288",
+   "repeat_of": null,
+   "origin": "model"
+  },
+  {
+   "id": "T10",
+   "tool": "read_pipeline_file",
+   "args": {
+    "path": "models/staging/_sources.yml"
+   },
+   "output": "[T10 read_pipeline_file]\n# dbt_marketing/models/staging/_sources.yml (80 lines)\nversion: 2\n\nsources:\n  # ---------------------------------------------------------------------------\n  # Observable data. Everything downstream may read these.\n  # ---------------------------------------------------------------------------\n  - name: raw\n    description: >\n      Data as it arrived, written by attribution/ingest.py. Never edited in\n      place - it is reproducible from the Kaggle CSV plus the seeded generator.\n    schema: raw\n    tables:\n      - name: touchpoints\n        description: One row per marketing exposure. The observable journey.\n\n        # Freshness against the dataset's own clock, not the wall clock. The\n        # generator writes fixed dates (2026-01-01 to 2026-04-13), so\n        # comparing max(touched_at) to now() would fail forever on clean data.\n        # loaded_at_query returns \"now, minus how far max(touched_at) sits\n        # behind data_as_of\", which makes the age equal to\n        # data_as_of - max(touched_at): about a day on clean data, and 30 days\n        # if a load ever lands with backdated timestamps.\n        loaded_at_query: |\n          select cast(current_timestamp as timestamp)\n                 - (cast('{{ var(\"data_as_of\") }}' as timestamp) - max(touched_at))\n          from {{ this }}\n        freshness:\n          warn_after: {count: 2, period: day}\n          error_after: {count: 7, period: day}\n        columns:\n          - name: user_id\n            description: Synthetic user identifier.\n          - name: touch_number\n            description: 0-based position of this touch within the user's journey.\n          - name: touched_at\n            description: When the exposure happened.\n          - name: channel\n            description: Marketing channel (six values, see channels.py).\n          - name: campaign\n            description: Campaign within the channel, three per channel.\n          - name: cost\n            description: What we paid for this touch, USD. Organic and direct are free.\n\n      - name: conversions\n        description: One row per user, whether or not they converted.\n        columns:\n          - name: user_id\n          - name: converted\n          - name: journey_length\n            description: >\n              Touch count as recorded by the generator. We deliberately recount\n              it from touchpoints in int_journeys and test that the two agree -\n              see tests/assert_journey_length_reconciles.sql.\n          - name: converted_at\n          - name: revenue\n\n      - name: kaggle_ads\n        description: >\n          Real Facebook ad performance, 1,143 rows of ad-level aggregates. Used\n          only to calibrate the generator; it has no user IDs so it cannot\n          support attribution itself.\n\n  # ---------------------------------------------------------------------------\n  # ANSWER KEY. Declared so it is documented and so the leakage test can name\n  # it - NOT so it can be used. No model may depend on these tables.\n  # tests/assert_no_answer_key_leakage.sql enforces this at build time.\n  # ---------------------------------------------------------------------------\n  - name: answer_key\n    description: >\n      GROUND TRUTH - which touch actually caused each conversion, and the lift\n      parameters we planted. Reading these from any staging, intermediate or\n      marts model is target leakage: attribution models would score perfectly\n      and mean nothing. Phase 4 is the only consumer, and it reads them\n      directly rather than through dbt.\n    schema: raw\n    tables:\n      - name: true_effects\n        description: Per-touch record of whether that touch fired the conversion.\n      - name: channel_ground_truth\n        description: The planted per-channel conversion_lift.\n",
+   "error": false,
+   "api_call_id": "call_163534",
+   "repeat_of": null,
+   "origin": "model"
+  }
+ ],
+ "hypotheses": [
+  {
+   "rank": 1,
+   "root_cause": "The raw.touchpoints source table has not been updated since March 14, 2026, making it 31 days stale relative to the reference date of April 14, 2026 and violating the 7-day freshness limit.",
+   "category": "source_freshness",
+   "evidence_ids": [
+    "E1",
+    "E2",
+    "E3",
+    "E4"
+   ],
+   "confidence": 0.95,
+   "fix_kind": "upstream_data_issue",
+   "recommended_action": "Investigate and restart the upstream ingestion pipeline for raw.touchpoints to load data past March 14, 2026."
+  }
+ ],
+ "hallucinations": [],
+ "budget": {
+  "tool_calls": 10,
+  "repeated_calls": 0,
+  "llm_calls": 10,
+  "tokens": 42484,
+  "fix_iterations": 1,
+  "fixer_turns": 0,
+  "max_tool_calls": 25,
+  "max_llm_calls": 30,
+  "max_tokens": 300000,
+  "max_fix_iterations": 3,
+  "max_fixer_turns": 3
+ },
+ "status": "done",
+ "triage": {
+  "category": "source_freshness",
+  "confidence": 1.0,
+  "rationale": "The source check failed because max_loaded_at is 31.0 days old (error after 7 day)."
+ },
+ "evidence": [
+  {
+   "id": "E1",
+   "claim": "The dbt source freshness check failed for raw.touchpoints because max_loaded_at was evaluated as 31.0 days old against an error threshold of 7 days.",
+   "tool": "get_run_results",
+   "tool_call_id": "T1",
+   "excerpt": "{\"unique_id\":\"source.marketing_attribution.raw.touchpoints\",\"name\":\"raw.touchpoints\",\"status\":\"error\",\"max_loaded_at\":\"2026-08-10T19:04:07.480160+00:00\",\"age_s\":2679838.332898,\"warn_after\":\"2 day\",\"error_after\":\"7 day\",\"message\":\"error: max_loaded_at is 31.0 days old (error after 7 day)\"}"
+  },
+  {
+   "id": "E2",
+   "claim": "The maximum touched_at timestamp in raw.touchpoints is March 14, 2026 at 03:36:01.",
+   "tool": "query_duckdb",
+   "tool_call_id": "T7",
+   "excerpt": "{\"columns\": [\"max_touched_at\", \"min_touched_at\", \"cnt\"], \"rows\": [[\"2026-03-14 03:36:01.667102\", \"2025-12-02 00:00:28.668910\", 170402]], \"row_count\": 1, \"elapsed_s\": 0.004}"
+  },
+  {
+   "id": "E3",
+   "claim": "The dbt project configuration defines the dataset reference date data_as_of as April 14, 2026.",
+   "tool": "read_pipeline_file",
+   "tool_call_id": "T6",
+   "excerpt": "data_as_of: '2026-04-14'"
+  },
+  {
+   "id": "E4",
+   "claim": "The loaded_at_query for raw.touchpoints computes freshness relative to the difference between data_as_of and max(touched_at).",
+   "tool": "read_pipeline_file",
+   "tool_call_id": "T4",
+   "excerpt": "loaded_at_query: |\n          select cast(current_timestamp as timestamp)\n                 - (cast('{{ var(\"data_as_of\") }}' as timestamp) - max(touched_at))\n          from {{ this }}"
+  }
+ ],
+ "seed_budget": {
+  "tool_calls": 8,
+  "repeated_calls": 0,
+  "llm_calls": 7,
+  "tokens": 32978,
+  "fix_iterations": 0,
+  "fixer_turns": 0,
+  "max_tool_calls": 25,
+  "max_llm_calls": 30,
+  "max_tokens": 300000,
+  "max_fix_iterations": 3,
+  "max_fixer_turns": 3
+ },
+ "fix_attempts": [
+  {
+   "iteration": 1,
+   "proposal": {
+    "kind": "upstream_data_issue",
+    "explanation": "The source freshness check for raw.touchpoints failed because max(touched_at) is March 14, 2026, which is 31 days prior to the data_as_of reference date of April 14, 2026, exceeding the 7-day freshness threshold. The loaded_at_query accurately calculated the data lag, correctly identifying stale source data from an incomplete or halted ingestion run.",
+    "edits": [],
+    "recommended_action": "Investigate and restart the upstream ingestion pipeline for raw.touchpoints to load touchpoint data past March 14, 2026 up to April 14, 2026."
+   },
+   "apply": null,
+   "validation": null
+  }
+ ],
+ "approval": {
+  "status": "approved",
+  "note": "correct",
+  "decided_at": "2026-09-12T22:50:16+00:00"
+ },
+ "pull_request": null,
+ "escalation_reason": null
+}
